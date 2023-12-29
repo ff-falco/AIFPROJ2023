@@ -21,12 +21,8 @@
 :- dynamic open_spaces/0.
 :- dynamic shopping_done/0.
 :- dynamic battlefield_start/2.
+:- dynamic battle_begin/0.
 
-
-%if the agent has any comestible it will eat it
-action(eat) :- has(agent,comestible,_).
-
-action(pay) :- has_to_pay.
 % SHOP PLANNING PREDICATES
 healthy :- health(H),health_threshold(T), H > T.
 
@@ -35,6 +31,8 @@ rich :- money(M),money_threshold(T), M > T.
 can_buy(Type,Name,Cost) :- money(M), available_to_buy(Type,Name,Cost),M>=Cost.
 %the agent will buy first health if it is not healthy
 wants_to_buy(Type,Name,Cost) :- \+ healthy , can_buy(Type,Name,Cost), best_healing_option(Type,Name,Cost).
+
+
 
 best_healing_option(Type,Name,Cost):- can_buy(Type,Name,Cost),
                                         healing_stats(Type,Name,Healing),
@@ -61,7 +59,6 @@ wants_to_buy(arrow,ArrowType,Cost):- healthy,(\+ rich),can_buy(arrow,ArrowType,C
                                      arrows(Arrows),arrows_threshold(ArrowsThreshold),Arrows < ArrowsThreshold,
                                      % it doesn't want to buy another weapon
                                      \+ wants_to_buy(weapon,_,_).
-position(place,battlefield_start,R,C+1) :- position(object,door,R,C).
 
 wants_to_buy(armor,ArmorName,ArmorCost) :- healthy,rich, 
                                             \+ wants_to_buy(weapon,_,_),
@@ -78,10 +75,13 @@ action(avoid_shopkeeper(Direction)) :- position(enemy,'shopkeeper',SKR,SKC),
                                         position(agent,_,AR,AC),
                                         is_close(SKR,SKC,AR,AC),
                                         next_step(AR,AC,SKR,SKC, SD),
-                                        close_direction(SD,Direction),\+ shopping_done.
-position(place,start,R,C) :- position(object,door,R,C).
+                                        close_direction(SD,Direction),
+                                        resulting_position(AR,AC, NewR, NewC,Direction),
+                                        (position(object,tile,NewR,NewC);position(object,door,NewR,NewC)).
 %action(activate_portal):- stepping_on(agent,object,portal).
 %action(pick):- stepping_on(agent,ObjType,ObjName),wants_to_buy(ObjType,ObjName,_).
+
+
 action(buy_item(ObjCost,ObjType,ObjName)):-stepping_on(agent,ObjType,ObjName),wants_to_buy(ObjType,ObjName,ObjCost).  
 action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                     position(ItemType,ItemName,IR,IC),
@@ -90,21 +90,33 @@ action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                     \+ stepping_on(agent,ItemType,ItemName),
                                     \+ shopping_done.
 
-action(get_into_battlefield(east)) :- shopping_done,position(object,tile,TR,TC),position(agent,_,AR,AC),%battlefield_start(BC,BR), BC+2 < AC,
-                                      (TC is AC+1,TR is AR).
 
-action(get_into_battlefield(south)) :- shopping_done,position(agent,_,AR,AC),
+action(sit) :- battle_begin.
+
+
+action(get_into_battlefield(east)) :- shopping_done,position(agent,_,AR,AC),\+ battle_begin,
+                                      ((position(object,tile,TR,TC),TC is AC+1,TR is AR);(battlefield_start(BR,BC), BR is AR)).
+
+action(get_into_battlefield(south)) :- shopping_done,position(agent,_,AR,AC),\+ battle_begin,
                                         \+ (position(object,tile,TR,TC),TC is AC+1,TR is AR).
+can_move(R,C,D) :- position(agent,_,R,C),resulting_position(R, C, NewR, NewC, D),position(Type,_,NewR,NewC),Type \= enemy.
 %exit the shop if it doesn't want to buy anything else
 action(exit_shop(Direction)) :- position(agent,_,AR,AC),
                                 position(object,door,DR,DC),
                                 next_step(AR,AC,DR,DC,Direction),
+                                resulting_position(AR, AC, NewR, NewC,Direction),
+                                (position(object,door,NewR,NewC);position(object,tile,NewR,NewC)),
+                                %can_move(AR,AC,Direction),
                                 \+ (
                                     position(object,door,OtherDR,OtherDC),
                                     OtherDC<DC
-                                ),
+                                ), 
                                 %avoid_shopkeeper(AR,AC,Direction,ActualDirection),
-                                \+ wants_to_buy(_,_,_),\+ shopping_done.
+                                \+ wants_to_buy(_,_,_),
+                                \+ shopping_done,
+                                \+ battle_begin.
+%if no other action is avaialable sit to make a turn pass
+action(sit) :- true.
 % -----------------------------------------------------------------------------------------------
 
 % test the different condition for closeness
@@ -125,7 +137,7 @@ next_step(R1,C1,R2,C2, D) :-
         ( C1 > C2 -> D = southwest; D = southeast )
     ))).
 
-% check if the selected direction is safe
+/* % check if the selected direction is safe
 safe_direction(R, C, D, Direction) :- resulting_position(R, C, NewR, NewC, D),
                                       ( safe_position(NewR, NewC) -> Direction = D;
                                       % else, get a new close direction
@@ -136,7 +148,7 @@ safe_direction(R, C, D, Direction) :- resulting_position(R, C, NewR, NewC, D),
 % a square if unsafe if there is a trap or an enemy
 unsafe_position(R, C) :- position(trap, _, R, C).
 unsafe_position(R, C) :- position(enemy, _, R, C).
-unsafe_position(R,C) :- position(enemy, _, ER, EC), is_close(ER, EC, R, C).
+unsafe_position(R,C) :- position(enemy, _, ER, EC), is_close(ER, EC, R, C). */
 
 %
 
@@ -178,9 +190,9 @@ close_direction(west, northwest).
 close_direction(northwest, north).
 
 has(agent, _, _) :- fail.
-
+/* 
 unsafe_position(_,_) :- fail.
-safe_position(R,C) :- \+ unsafe_position(R,C).
+safe_position(R,C) :- \+ unsafe_position(R,C). */
 
 healing_stats(comestible,apple,5).
 healing_stats(comestible,orange,10).

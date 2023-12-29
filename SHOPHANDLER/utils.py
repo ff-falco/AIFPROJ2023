@@ -83,21 +83,23 @@ def perform_action(action, env,kb):
     elif 'east' in action: action_id = 1
     elif 'south' in action: action_id = 2
     elif 'west' in action: action_id = 3
-    elif 'activate_portal' in action : action_id = 11
-    #print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
+    elif 'sit' in action : action_id = 11
+    print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
     obs, reward, done, info = env.step(action_id)
     return obs, reward, done, info
 
 def process_state(obs: dict, kb: Prolog):
+
     kb.retractall("position(_,_,_,_)")
 
     # elabora in base alle osservazioni presenti
     level_heigth=len(obs['screen_descriptions'])
     level_width=len(obs['screen_descriptions'][0])
+
     for i in range(level_heigth):
         for j in range(level_width):
             if (obs['screen_descriptions'][i][j] == 0).all(): continue
-            objs = bytes(obs['screen_descriptions'][i][j]).decode('utf-8').rstrip('\x00')
+            objs = bytes(obs['screen_descriptions'][i][j]).decode('utf-8').rstrip('\x00') 
             obj_type=chr(obs['chars'][i][j]) # characters indicates the type of object
             if obj_type == '!':
                 kb.asserta(f"position(potion,healing,{i},{j})")
@@ -164,14 +166,18 @@ def process_state(obs: dict, kb: Prolog):
     kb.retractall("health(_)")
     kb.asserta(f"position(agent, _, {obs['blstats'][1]}, {obs['blstats'][0]})")
     kb.asserta(f"health({int(obs['blstats'][10]/obs['blstats'][11]*100)})")
+    agent_r=obs['blstats'][1]
+    agent_c=obs['blstats'][0]
 
+    bs=list(kb.query("battlefield_start(R,C)"))[0]
+
+    if agent_r == bs['R'] and agent_c == bs['C']+1:
+        kb.asserta("battle_begin")
 
     # processa messaggio sullo schermo
     message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
     if 'The door opens' in message:
         kb.asserta("shopping_done")
-    if 'shopkeeper' in message:
-        print("you stumbled upon the shopkeeper")
     if 'You see here' in message:
         armor=list(filter(lambda x:x in message,AVAIABLE_ARMORS))
         if len(armor) !=0:
@@ -187,10 +193,6 @@ def process_state(obs: dict, kb: Prolog):
             kb.asserta(f'stepping_on(agent,potion,healing)')
         if 'potion' in message:
             kb.asserta(f'stepping_on(agent,potion,healing)')
-
-    if 'You activated a magic portal!' in message:
-        kb.asserta("shopping_done")
-        kb.asserta(f'stepping_on(agent,object,portal)')
         
 # indexes for showing the image are hard-coded
 def show_match(states: list):
