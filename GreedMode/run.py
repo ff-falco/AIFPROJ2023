@@ -38,7 +38,7 @@ AVAIABLE_ARROWS=[
 ]
 
 AVAIABLE_WEAPONS=[
-'orcish dagger',
+'bullwhip',
 'stiletto',
 'long sword',
 'morning star',
@@ -60,18 +60,18 @@ SYMBOLS=[
 '[', #armor
 ]
 
-MOB=['newt', #Level 1
-     'iguana',   #Level 
+MOB=['bat', #Level 1
+     'gnome',   #Level 2
      'giant ant',   #Level 3
      'lemure']  #Level 4
 
-MINIBOSS=['paper golem',  #Level 2
-          'dog', #Level 3
+MINIBOSS=['dwarf',  #Level 2
+          'orc shaman', #Level 3
           'lizard'] #Level 4
 
-BOSS=['rock mole', #Level 2 
-      'jellyfish', #Level 3 
-      'unicorn', #Level 4
+BOSS=['gnome lord', #Level 2
+      'killer bee', #Level 3 
+      'dwarf lord', #Level 4
         'yeti']  #Level 5
 
 
@@ -243,9 +243,9 @@ def fillwithobj(lvl: LevelGenerator,seed: int):
     others=[]
     numitem=random.randint(3,5)
     #STARTING ITEMS
-    #if levelnumber==1:
-    #    lvl.add_object(name='bow',symbol=')',place=(2,6)) #METTI ARCO
-    #    lvl.add_object(name='worm tooth',symbol=')',place=(2,5)) #METTI ARMA INIZIALE
+    if levelnumber==1:
+        lvl.add_object(name='bow',symbol=')',place=(2,6)) #METTI ARCO
+        lvl.add_object(name='worm tooth',symbol=')',place=(2,5)) #METTI ARMA INIZIALE
         
     if numitem==3:
         if levelnumber==1:
@@ -287,21 +287,18 @@ def creashop(levelnumber,startingseed):
 |...........|     
 |||||||||||||"""
     seed=startingseed+200*levelnumber
-    lvl=LevelGenerator(map=map,lit=True,flags=['premapped','shortsighted'])
+    lvl=LevelGenerator(map=map,lit=True,flags=['premapped'])
     lvl.add_line("#LEVEL: "+str(levelnumber))
     lvl.add_line("#SEED: "+str(seed))
     lvl.set_start_pos((1,6))
-    #lvl.add_monster(name='shopkeeper',place=(6,1))
-    lvl.add_object(name='skeleton key',symbol='(',place=(11,1)) #Skeleton Key
-    lvl.add_object(name='skeleton key',symbol='(',place=(11,2))
-
-    lvl.add_door("locked", place=(12,1))
+    lvl.add_monster(name='shopkeeper',place=(6,1))
+    lvl.add_door("closed", place=(12,1))
 
     
     fillwithobj(lvl,seed)
-    #if levelnumber==1:
-    #    startinggold=15 #METTI SOLDI INIZIALI (DA VEDERE ANCORA QUANTI)
-    #    lvl.add_line("GOLD: "+str(startinggold)+",(1, 5)") #PRIMA AMOUNT POI COORDINATE
+    if levelnumber==1:
+        startinggold=15 #METTI SOLDI INIZIALI (DA VEDERE ANCORA QUANTI)
+        lvl.add_line("GOLD: "+str(startinggold)+",(1, 5)") #PRIMA AMOUNT POI COORDINATE
     
     return lvl.get_des()
 
@@ -409,22 +406,22 @@ def mazeroomdes(levelnumber):
 
 def creabattlefield(levelnumber:int ,startingseed:int ):
     if levelnumber==1:
-        return roomroomdes(startingseed, levelnumber),"roomroom"
+        return roomroomdes(startingseed, levelnumber)
     elif levelnumber==5:
-        return bossroomdes(5),"bossroom"
+        return bossroomdes(5)
     else:
         random.seed(startingseed*levelnumber)
         choice=random.randint(0,200)
         if(choice<=100):
-            return roomroomdes(startingseed,levelnumber),"roomroom"
+            return roomroomdes(startingseed,levelnumber)
         elif(choice<=160):
-            return minibossroomdes(levelnumber),"minibossroom"
+            return minibossroomdes(levelnumber)
         elif(choice<=180):
-            return bossroomdes(levelnumber),"bossroom"
+            return bossroomdes(levelnumber)
         elif(choice<=199):
-            return mazeroomdes(levelnumber),"mazeroom"
+            return mazeroomdes(levelnumber)
         else:
-            return bonusroom,"bonusroom"
+            return bonusroom
     
 
 def takemap(desfile: str):
@@ -488,7 +485,7 @@ def headerextractor(desfile:str):
 
 def completemapdes(levelnumber,startingseed,custom=None):
     if custom==None:
-        battlefield,custom=creabattlefield(levelnumber,startingseed)
+        battlefield=creabattlefield(levelnumber,startingseed)
     elif custom=="boss":
         battlefield=bossroomdes(levelnumber)
     elif custom=="miniboss":
@@ -506,18 +503,16 @@ def completemapdes(levelnumber,startingseed,custom=None):
     portal=incomingextractor(battlefield)
     battlefield=portal[0]
     incominglocation=portal[1]
-    
     battlefieldheader=headerextractor(battlefield)
     shop=creashop(levelnumber,startingseed)
     shopheader=headerextractor(shop)
-    lvl=LevelGenerator(map=mapmerger(takemap(shop),takemap(battlefield)),lit=True,flags=['premapped','shortsighted'])
+    lvl=LevelGenerator(map=mapmerger(takemap(shop),takemap(battlefield)),lit=True,flags=['premapped'])
     lvl.add_line(shopheader)
-    lvl.add_object(name="amulet of ESP",symbol="\"",place=(1,1))
     lvl.add_line(battlefieldheader)
-    lvl.add_door("locked", place=incominglocation)
+    lvl.add_door("closed", place=incominglocation)
     lvl.fill_terrain("rect",".",15,1,15,incominglocation[1])
     lvl.fill_terrain("rect",".",15,incominglocation[1],incominglocation[0]-1,incominglocation[1])
-    return lvl.get_des(),custom
+    return lvl.get_des()
 
 
 
@@ -527,22 +522,21 @@ class run:
     def __init__(self,seed=random.randint(0,200),startinglevel=1):
         self.seed=seed
         self.levelnumber=startinglevel
-        self.desfile,self.roomtype=completemapdes(self.levelnumber,self.seed)
+        self.desfile=completemapdes(self.levelnumber,self.seed)
 
     def getdes(self):
         return self.desfile
-    def gettype(self):
-        return self.roomtype
+    
     def nextlevel(self):
         if self.levelnumber==5:
             return "GG"
         else:
             self.levelnumber=self.levelnumber+1
-            self.desfile,self.roomtype=completemapdes(self.levelnumber,self.seed)
+            self.desfile=completemapdes(self.levelnumber,self.seed)
 
     def newrun(self,seed=random.randint(0,200)):
         self.seed=seed
         self.levelnumber=1
-        self.desfile,self.roomtype=completemapdes(self.levelnumber,self.seed)
+        self.desfile=completemapdes(self.levelnumber,self.seed)
 
 
