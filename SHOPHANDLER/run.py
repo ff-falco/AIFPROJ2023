@@ -24,17 +24,17 @@ def render_des_file(des_file):
     env.render()
     plt.imshow(obs['pixel'][0:1000, 0:1000])
 
-AVAIABLE_OBJECTS=[
+AVAIABLE_ITEMS=[
 'healing',
 ]
 
-#Armi disponibili dalla più scarsa alla più forte
+#Avaiable weapons from the weakest to the strongest
 AVAIABLE_ARROWS=[
-'orcish arrow',
-'silver arrow',
-'arrow',
-'elven arrow',
-'ya'
+'orcish arrow', #Level 1 
+'silver arrow', #Level 2
+'arrow', #Level 3
+'elven arrow', #Level 4
+'ya' #Level 5
 ]
 
 AVAIABLE_WEAPONS=[
@@ -60,22 +60,176 @@ SYMBOLS=[
 '[', #armor
 ]
 
-MOB=['newt', #Level 1
-     'iguana',   #Level 
-     'giant ant',   #Level 3
-     'lemure']  #Level 4
-
-MINIBOSS=['paper golem',  #Level 2
-          'dog', #Level 3
-          'lizard'] #Level 4
-
-BOSS=['rock mole', #Level 2 
-      'jellyfish', #Level 3 
-      'unicorn', #Level 4
-        'yeti']  #Level 5
-
-
 avaiableitems=['HEALING','ARROWS','WEAPON','ARMOR']
+
+
+def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) ->str:
+    """
+    lvl is the Level Generator object, where we have to add items.
+    seed is the starting number for the level generation, it has to be included in a range from 0 to 200.
+    posx and posy are the coordinates for the item to spawn in the shop, it depends from the avaiable quantity.
+    others is the list of the name of the others item already spawned.
+    addobject returns the name of the spawned item, useful to update the others list mentioned before. 
+    """
+    #For the shop we use seeds that are multiple of the original seed
+    levelnumber =math.floor(seed/200)
+    quality=levelnumber-1
+    remainingitems=avaiableitems
+    #If the shop has 5 items there is an item from a highest quality, or lowest inthe level 5 case, we refresh the array with the remaining avaible items.
+    for i in others:
+        remainingitems.pop(remainingitems.index(i))
+    if remainingitems.__len__()==0:
+        remainingitems=avaiableitems
+        if levelnumber==5:
+            quality=quality-1
+        else: quality=quality+1
+
+    choice=seed%remainingitems.__len__()
+    choosen=remainingitems[choice]
+    pos=(posx,posy)
+
+    if choosen=='HEALING':
+        choosenitem=AVAIABLE_ITEMS[0]
+        choosensymbol=SYMBOLS[0]
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+
+    elif choosen=='ARROWS':
+        choosenitem=AVAIABLE_ARROWS[quality]
+        choosensymbol=SYMBOLS[1]
+        #In the arrow case we are spawning three of them, it's enough to kill every mob
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy))
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+1))
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+2))
+
+    elif choosen=='WEAPON':
+        choosenitem=AVAIABLE_WEAPONS[quality]
+        choosensymbol=SYMBOLS[2]
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+
+    else:
+        choosenitem=AVAIABLE_ARMORS[quality]
+        choosensymbol=SYMBOLS[3]
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+        
+    return choosen
+    
+def fillwithobj(lvl: LevelGenerator,seed: int):
+    """
+    fillwithobj manage the number of the items spawned depending of the number, further details are explained in the levelgenerator notebook.
+    """
+    random.seed(seed)
+    levelnumber=math.floor(seed/200)
+
+    if levelnumber==1:
+        if seed<=360:
+            numitem=3
+        elif seed<=390:
+            numitem=4
+        else: 
+            numitem=5
+
+    elif levelnumber==2:
+        if seed<=500:
+            numitem=3
+        elif seed<=580:
+            numitem=4
+        else: 
+            numitem=5
+
+    if levelnumber==3:
+        if seed<=660:
+            numitem=3
+        elif seed<=760:
+            numitem=4
+        else: 
+            numitem=5
+
+    if levelnumber==4:
+        if seed<=840:
+            numitem=3
+        elif seed<=900:
+            numitem=4
+        else: 
+            numitem=5
+
+    if levelnumber==5:
+        if seed<=1010:
+            numitem=3
+        elif seed<=1040:
+            numitem=4
+        else: 
+            numitem=5
+    #STARTING ITEMS
+    #if levelnumber==1:
+    #    lvl.add_object(name='bow',symbol=')',place=(2,6)) #METTI ARCO
+    #    lvl.add_object(name='worm tooth',symbol=')',place=(2,5)) #METTI ARMA INIZIALE
+            
+    others=[]
+    numitem=random.randint(3,5)  
+    #In the first level a healing potion is guaranteed, the other choices are pseudo-random (depending on the seed)  
+    if numitem==3:
+        if levelnumber==1:
+            others=['HEALING']
+            lvl.add_object(name='healing',symbol='!',place=(4,3))
+        else:
+            others.append(addobject(lvl,seed,4,3,others))
+        others.append(addobject(lvl,seed,6,3,others))
+        others.append(addobject(lvl,seed,8,3,others))
+
+    elif numitem==4:
+        if levelnumber==1:
+            others=['HEALING']
+            lvl.add_object(name='healing',symbol='!',place=(3,3))
+        else:
+            others.append(addobject(lvl,seed,3,3,others))
+        others.append(addobject(lvl,seed,5,3,others))
+        others.append(addobject(lvl,seed,7,3,others))
+        others.append(addobject(lvl,seed,9,3,others))
+
+    elif numitem==5:
+        if levelnumber==1:
+            others=['HEALING']
+            lvl.add_object(name='healing',symbol='!',place=(2,3))
+        else:
+            others.append(addobject(lvl,seed,2,3,others))
+        others.append(addobject(lvl,seed,4,3,others))
+        others.append(addobject(lvl,seed,6,3,others))
+        others.append(addobject(lvl,seed,8,3,others))
+        others.append(addobject(lvl,seed,10,3,others))
+
+
+#createshop is the function that creates the shop in his complete form, with items, shopkeeper and well defined geometry.
+def createshop(levelnumber: LevelGenerator,startingseed: int):
+    map="""||||||||||||||||
+|...............
+|...........||||
+|...........|    
+|...........|    
+|...........|   
+|...........|     
+|||||||||||||"""
+    seed=startingseed+200*levelnumber
+    lvl=LevelGenerator(map=map,lit=True,flags=['premapped','shortsighted'])
+    lvl.add_line("#LEVEL: "+str(levelnumber))
+    lvl.add_line("#SEED: "+str(seed))
+    lvl.set_start_pos((1,6))
+    #lvl.add_monster(name='shopkeeper',place=(6,1))
+    lvl.add_object(name='skeleton key',symbol='(',place=(11,1)) #Skeleton Key
+    lvl.add_object(name='skeleton key',symbol='(',place=(11,2))
+
+    lvl.add_door("locked", place=(12,1))
+
+    
+    fillwithobj(lvl,seed)
+    #if levelnumber==1:
+    #    startinggold=15 #METTI SOLDI INIZIALI (DA VEDERE ANCORA QUANTI)
+    #    lvl.add_line("GOLD: "+str(startinggold)+",(1, 5)") #PRIMA AMOUNT POI COORDINATE
+    
+    return lvl.get_des()
+
+#-------------------------BATTLEFIELD DEFINITION----------------------------
+
+#In this section we define the geometry of the battlefields that have to be merged with the shop
 
 minibossmap="""                    ||||||||||||
                     |..........|
@@ -154,158 +308,26 @@ bonusroommap="""                    |||||||
                     
                     """
 
+MOB=['newt', #Level 1
+     'iguana',   #Level 
+     'giant ant',   #Level 3
+     'lemure']  #Level 4
 
-def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]):
-    #se gli altri sono frecce, arma e armatura, cerco di spawnare un'altra entità di qualità differente
-    levelnumber =math.floor(seed/200)
-    quality=levelnumber-1
-    remainingitems=['HEALING','ARROWS','WEAPON','ARMOR']
-    #gestione del caso (ci sono già altri item di questo tipo nello shop)
-    for i in others:
-        remainingitems.pop(remainingitems.index(i))
-    if remainingitems.__len__()==0:
-        remainingitems=['HEALING','ARROWS','WEAPON','ARMOR']
-        if levelnumber==5:
-            quality=quality-1
-        else: quality=quality+1
-    #a questo punto in remaining items ci sono gli item che possono ancora spawnare, devo scegliere
-    #in modo pseudo-casuale (dipende dal seed)
-    choice=seed%remainingitems.__len__()
-    choosen=remainingitems[choice]
-    pos=(posx,posy)
-    if choosen=='HEALING':
-        choosenitem=AVAIABLE_OBJECTS[0]
-        choosensymbol=SYMBOLS[0]
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+MINIBOSS=['paper golem',  #Level 2
+          'dog', #Level 3
+          'lizard'] #Level 4
 
-    elif choosen=='ARROWS':
-        choosenitem=AVAIABLE_ARROWS[quality]
-        choosensymbol=SYMBOLS[1]
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy))
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+1))
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+2))
+BOSS=['rock mole', #Level 2 
+      'jellyfish', #Level 3 
+      'unicorn', #Level 4
+        'yeti']  #Level 5
 
-    elif choosen=='WEAPON':
-        choosenitem=AVAIABLE_WEAPONS[quality]
-        choosensymbol=SYMBOLS[2]
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
 
-    else:
-        choosenitem=AVAIABLE_ARMORS[quality]
-        choosensymbol=SYMBOLS[3]
-        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
-        
-    return choosen
-    
-def fillwithobj(lvl: LevelGenerator,seed: int):
-    random.seed(seed)
-    levelnumber=math.floor(seed/200)
+#Every type of the battledfield is explained better in the levelgenerator notebook, basically starting from a map, filled with gold and enemies.
+#The difference between levels are in the type of enemies and the probability of a type of level.
+#All these functions return the des string that identifies the battlefield level. 
 
-    if levelnumber==1:
-        if seed<=360:
-            numitem=3
-        elif seed<=390:
-            numitem=4
-        else: 
-            numitem=5
-
-    elif levelnumber==2:
-        if seed<=500:
-            numitem=3
-        elif seed<=580:
-            numitem=4
-        else: 
-            numitem=5
-
-    if levelnumber==3:
-        if seed<=660:
-            numitem=3
-        elif seed<=760:
-            numitem=4
-        else: 
-            numitem=5
-
-    if levelnumber==4:
-        if seed<=840:
-            numitem=3
-        elif seed<=900:
-            numitem=4
-        else: 
-            numitem=5
-
-    if levelnumber==5:
-        if seed<=1010:
-            numitem=3
-        elif seed<=1040:
-            numitem=4
-        else: 
-            numitem=5
-    others=[]
-    numitem=random.randint(3,5)
-    #STARTING ITEMS
-    #if levelnumber==1:
-    #    lvl.add_object(name='bow',symbol=')',place=(2,6)) #METTI ARCO
-    #    lvl.add_object(name='worm tooth',symbol=')',place=(2,5)) #METTI ARMA INIZIALE
-        
-    if numitem==3:
-        if levelnumber==1:
-            others=['HEALING']
-            lvl.add_object(name='healing',symbol='!',place=(4,3))
-        else:
-            others.append(addobject(lvl,seed,4,3,others))
-        others.append(addobject(lvl,seed,6,3,others))
-        others.append(addobject(lvl,seed,8,3,others))
-
-    elif numitem==4:
-        if levelnumber==1:
-            others=['HEALING']
-            lvl.add_object(name='healing',symbol='!',place=(3,3))
-        else:
-            others.append(addobject(lvl,seed,3,3,others))
-        others.append(addobject(lvl,seed,5,3,others))
-        others.append(addobject(lvl,seed,7,3,others))
-        others.append(addobject(lvl,seed,9,3,others))
-
-    elif numitem==5:
-        if levelnumber==1:
-            others=['HEALING']
-            lvl.add_object(name='healing',symbol='!',place=(2,3))
-        else:
-            others.append(addobject(lvl,seed,2,3,others))
-        others.append(addobject(lvl,seed,4,3,others))
-        others.append(addobject(lvl,seed,6,3,others))
-        others.append(addobject(lvl,seed,8,3,others))
-        others.append(addobject(lvl,seed,10,3,others))
-
-def creashop(levelnumber,startingseed):
-    map="""||||||||||||||||
-|...............
-|...........||||
-|...........|    
-|...........|    
-|...........|   
-|...........|     
-|||||||||||||"""
-    seed=startingseed+200*levelnumber
-    lvl=LevelGenerator(map=map,lit=True,flags=['premapped','shortsighted'])
-    lvl.add_line("#LEVEL: "+str(levelnumber))
-    lvl.add_line("#SEED: "+str(seed))
-    lvl.set_start_pos((1,6))
-    #lvl.add_monster(name='shopkeeper',place=(6,1))
-    lvl.add_object(name='skeleton key',symbol='(',place=(11,1)) #Skeleton Key
-    lvl.add_object(name='skeleton key',symbol='(',place=(11,2))
-
-    lvl.add_door("locked", place=(12,1))
-
-    
-    fillwithobj(lvl,seed)
-    #if levelnumber==1:
-    #    startinggold=15 #METTI SOLDI INIZIALI (DA VEDERE ANCORA QUANTI)
-    #    lvl.add_line("GOLD: "+str(startinggold)+",(1, 5)") #PRIMA AMOUNT POI COORDINATE
-    
-    return lvl.get_des()
-
-def bonusroom():
+def bonusroom()->str:
     lvl=LevelGenerator(lit=True,flags=['premapped'],map=bonusroommap)
     lvl.set_start_pos((21,2))
     lvl.add_stair_down(place=(24,1))
@@ -315,53 +337,52 @@ def bonusroom():
     
     return lvl.get_des()
 
-def bossroomdes(levelnumber):
+def bossroomdes(levelnumber: int)->str:
     lvl=LevelGenerator(map=bossmap,lit=True,flags=['premapped'])
     lvl.set_start_pos((21,7))
     lvl.add_stair_down(place=(28, 1))
-    #lvl.add_door("closed", place=(28,3))
-    #lvl.add_door("closed", place=(32,7))
-
     lvl.add_line("GOLD: 5,(34,7)")
     lvl.add_line("GOLD: 5,(35,6)")
     lvl.add_line("GOLD: 5,(35,7)")
     lvl.add_line("GOLD: 5,(35,8)")
-    #AGGIUNGI IL BOSS (29,7)
     lvl.add_monster(name=BOSS[levelnumber-2],place=(29,7))
     
     return lvl.get_des()
 
-def minibossroomdes(levelnumber):
+def minibossroomdes(levelnumber: int)->str:
     lvl=LevelGenerator(map=minibossmap,lit=True,flags=['premapped'])
     lvl.set_start_pos((21,11))
     lvl.add_stair_down(place=(30, 1))
     
-    #ZONA MOB
+    #MOB ZONE
     lvl.add_monster(name=MOB[levelnumber-1],place=(28,1))
     lvl.add_monster(name=MOB[levelnumber-1],place=(29,2))
     lvl.add_monster(name=MOB[levelnumber-1],place=(30,3))
-    #lvl.add_door("closed", place=(27,1))
+
+    #MOB ZONE (optional)
     lvl.add_monster(name=MOB[levelnumber-1],place=(21,1))
+    #MOB REWARD
     lvl.add_line("GOLD: 5,(25,5)")
 
-
-    #ZONA MINIBOSS
+    #MINIBOSS ZONE (optional)
     lvl.add_monster(name=MINIBOSS[levelnumber-2],place=(23,13))
-    #lvl.add_door("closed", place=(23,12))
-    #lvl.add_door("closed", place=(27,15))
     #MINIBOSS REWARD
     lvl.add_line("GOLD: 5,(23,10)")
     lvl.add_line("GOLD: 5,(24,10)")
     lvl.add_line("GOLD: 5,(25,10)")
+
     return lvl.get_des()
 
-def roomroomdes(seed,levelnumber):
+#For the room room we choose to spawn enemies in a pseudo-random location, based on the starting seed, to make this possible we consider the map as an matrix with coordinates i,j relative to the avaible tiles
+#then we randomly pop elements from there and we spawn enemies depending on the level number.
+
+def roomroomdes(seed: int,levelnumber : int)->str:
     lvl=LevelGenerator(map=roommap,lit=True,flags=['premapped'])
     lvl.set_start_pos((21,12))
     lvl.add_stair_down(place=(33, 1))
     random.seed(seed)
 
-    #MUTUALLY EXCLUSIVE RANDOMNESS----- 
+    #MUTUALLY EXCLUSIVE RANDOMNESS----
     pseudoarray=[]
     for i in range(1,13):
         pseudoarray.append(i)
@@ -375,7 +396,7 @@ def roomroomdes(seed,levelnumber):
         b=random.choice(pseudomatrix[a])
         pseudomatrix[a].pop(pseudomatrix[a].index(b))
         return (a+22,b)
-    #-------------------------------    
+    #---------------------------------    
 
     for i in range(0,4):
         lvl.add_line("GOLD: 5,"+str(pseudorandompos(temporaryseed)))
@@ -387,8 +408,8 @@ def roomroomdes(seed,levelnumber):
   
     return lvl.get_des()
 
-
-def mazeroomdes(levelnumber):
+#For the maze room we use the MAZEWALK functionality of minihack, it creates a random mazewalk between two point, useful to test the pathfinding capability of the agent.
+def mazeroomdes(levelnumber:int )->str:
     lvl=LevelGenerator(map=mazebasemap,lit=True,flags=['premapped'])
     lvl.set_start_pos((21,4))
 
@@ -407,7 +428,9 @@ def mazeroomdes(levelnumber):
  
     return lvl.get_des()
 
-def creabattlefield(levelnumber:int ,startingseed:int ):
+#createbattlefield is the function that creates the battlefield in his complete form, with enemies, an entrance from the shop, a total reward of 15-20 gold, depending on the room choosen. 
+
+def createbattlefield(levelnumber:int ,startingseed:int )->(str,str):
     if levelnumber==1:
         return roomroomdes(startingseed, levelnumber),"roomroom"
     elif levelnumber==5:
@@ -416,16 +439,19 @@ def creabattlefield(levelnumber:int ,startingseed:int ):
         random.seed(startingseed*levelnumber)
         choice=random.randint(0,200)
         if(choice<=100):
-            return roomroomdes(startingseed,levelnumber),"roomroom"
+            return (roomroomdes(startingseed,levelnumber),"roomroom")
         elif(choice<=160):
-            return minibossroomdes(levelnumber),"minibossroom"
+            return (minibossroomdes(levelnumber),"minibossroom")
         elif(choice<=180):
-            return bossroomdes(levelnumber),"bossroom"
+            return (bossroomdes(levelnumber),"bossroom")
         elif(choice<=199):
-            return mazeroomdes(levelnumber),"mazeroom"
+            return (mazeroomdes(levelnumber),"mazeroom")
         else:
-            return bonusroom,"bonusroom"
-    
+            return (bonusroom(),"bonusroom")
+
+#-------------------------MAP MERGING UTILITIES----------------------------
+#As we told in the presentation, shop and battlefield are two separate zones generated indipendently, then merged in a final unique des file which represents the complete level.
+
 
 def takemap(desfile: str):
     dessplittato=desfile.split('\n')
@@ -464,7 +490,7 @@ def mapmerger(shopmap:str,bfdmap:str):
         k=k+1
     cleanlines=[]
     return('\n'.join(finalmap))
-
+#incoming extractor is needed to take the merging point between the two zones, where we will buld a simple path.
 def incomingextractor(bfddes:str)->(str,(int,int)):
     bfdsplitted=bfddes.split('\n')
     for i in bfdsplitted:
@@ -485,10 +511,10 @@ def headerextractor(desfile:str):
             k=k+1
     finale="\n".join(dessplitted[k+1:])
     return finale
-
+#completemapdes returns the des file of the completed level with shop and battlefield merged in a unique level, they are connected by a simple corridor and separated by two locked door that can be unlocked by the skeleton keys in the shop.
 def completemapdes(levelnumber,startingseed,custom=None):
     if custom==None:
-        battlefield,custom=creabattlefield(levelnumber,startingseed)
+        battlefield,custom=createbattlefield(levelnumber,startingseed)
     elif custom=="boss":
         battlefield=bossroomdes(levelnumber)
     elif custom=="miniboss":
@@ -508,7 +534,7 @@ def completemapdes(levelnumber,startingseed,custom=None):
     incominglocation=portal[1]
     
     battlefieldheader=headerextractor(battlefield)
-    shop=creashop(levelnumber,startingseed)
+    shop=createshop(levelnumber,startingseed)
     shopheader=headerextractor(shop)
     lvl=LevelGenerator(map=mapmerger(takemap(shop),takemap(battlefield)),lit=True,flags=['premapped','shortsighted'])
     lvl.add_line(shopheader)
