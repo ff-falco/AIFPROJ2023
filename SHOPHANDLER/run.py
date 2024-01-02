@@ -321,20 +321,6 @@ bonusroommap="""                    |||||||
                     
                     """
 
-MOB=['newt', #Level 1
-     'iguana',   #Level 
-     'giant ant',   #Level 3
-     'lemure']  #Level 4
-
-MINIBOSS=['paper golem',  #Level 2
-          'dog', #Level 3
-          'lizard'] #Level 4
-
-BOSS=['rock mole', #Level 2 
-      'jellyfish', #Level 3 
-      'unicorn', #Level 4
-        'yeti']  #Level 5
-
 
 #Every type of the battledfield is explained better in the levelgenerator notebook, basically starting from a map, filled with gold and enemies.
 #The difference between levels are in the type of enemies and the probability of a type of level.
