@@ -159,10 +159,6 @@ def fillwithobj(lvl: LevelGenerator,seed: int):
             numitem=4
         else: 
             numitem=5
-    #STARTING ITEMS
-    #if levelnumber==1:
-    #    lvl.add_object(name='bow',symbol=')',place=(2,6)) #METTI ARCO
-    #    lvl.add_object(name='worm tooth',symbol=')',place=(2,5)) #METTI ARMA INIZIALE
             
     others=[]
     numitem=random.randint(3,5)  
@@ -221,9 +217,7 @@ def createshop(levelnumber: LevelGenerator,startingseed: int):
 
     
     fillwithobj(lvl,seed)
-    #if levelnumber==1:
-    #    startinggold=15 #METTI SOLDI INIZIALI (DA VEDERE ANCORA QUANTI)
-    #    lvl.add_line("GOLD: "+str(startinggold)+",(1, 5)") #PRIMA AMOUNT POI COORDINATE
+
     
     return lvl.get_des()
 
