@@ -22,6 +22,7 @@
 :- dynamic shopping_done/0.
 :- dynamic battlefield_start/2.
 :- dynamic battle_begin/0.
+:- dynamic weapon_stats/2.
 
 % SHOP PLANNING PREDICATES
 healthy :- health(H),health_threshold(T), H > T.
@@ -32,6 +33,17 @@ can_buy(Type,Name,Cost) :- money(M), available_to_buy(Type,Name,Cost),M>=Cost.
 %the agent will buy first health if it is not healthy
 wants_to_buy(Type,Name,Cost) :- \+ healthy , can_buy(Type,Name,Cost), best_healing_option(Type,Name,Cost).
 
+wants_to_buy(weapon,WeaponName,WeaponCost) :- can_buy(weapon,WeaponName,WeaponCost),wields_weapon(agent,CurrentWeapon),position(enemy,EnemyType,_,_),
+                                            (\+ is_beatable(EnemyType,CurrentWeapon)),is_beatable(EnemyType,WeaponName),best_weapon_buyable(WeaponName).
+
+wants_to_buy(weapon,WeaponName,WeaponCost) :- rich,can_buy(weapon,WeaponName,WeaponCost), wields_weapon(agent,CurrentWeapon),weapon_stats(CurrentWeapon,StatOld),
+                                            weapon_stats(WeaponName,StatNew), StatNew > StatOld,best_weapon_buyable(WeaponName).
+
+%se hai soldi e vita prendi armor
+% se sei a livelli bassi, e l'armor ha livello più alto se non sei rich la prendi lo stesso
+%wants_to_buy(armor,Name,Cost) :- 
+
+%wants_to_buy(armor,ArmorName,ArmorCost) :- rich, can_buy(armor,ArmorName,ArmorCost),
 
 
 best_healing_option(Type,Name,Cost):- can_buy(Type,Name,Cost),
@@ -41,45 +53,69 @@ best_healing_option(Type,Name,Cost):- can_buy(Type,Name,Cost),
                                             healing_stats(OtherType,OtherName,OtherHealing), 
                                             Healing < OtherHealing
                                         ).
+                                        
+best_weapon_buyable(Name):-  weapon_stats(Name,Damage),
+                                        \+ (
+                                            can_buy(weapon,OtherName,_),
+                                            weapon_stats(OtherName,OtherDamage), 
+                                            Damage < OtherDamage
+                                        ).
 
 is_beatable(Enemy,Weapon) :- weapon_stats(Weapon,Damage),enemy_stats(Enemy,_,EnemyPower),Damage >= EnemyPower.
 
-wants_to_buy(weapon,WeaponName,WeaponCost):- healthy,can_buy(weapon,WeaponName,WeaponCost),wields_weapon(agent,CurrentWeapon),
-                                            (\+ is_beatable(EnemyType,CurrentWeapon)),is_beatable(EnemyType,WeaponName),position(enemy,EnemyName,_,_).
 
-                                            wants_to_buy(weapon,WeaponName,WeaponCost):- healthy,rich,can_buy(weapon,WeaponName,WeaponCost),
-                                            \+ (
-                                                position(enemy,EnemyName,_,_),
-                                            enemy_stats(EnemyName,ranged,_)
-                                            ).
-wants_to_buy(arrow,ArrowType,Cost):- healthy,(\+ rich),can_buy(arrow,ArrowType,Cost),position(enemy,EnemyName,_,_),
-                                     %checks if there is a ranged enemy and the map as corridors
-                                     enemy_stats(EnemyName,ranged,_),corridors,
-                                     %checks if it has enough arrows
-                                     arrows(Arrows),arrows_threshold(ArrowsThreshold),Arrows < ArrowsThreshold,
-                                     % it doesn't want to buy another weapon
-                                     \+ wants_to_buy(weapon,_,_).
 
-wants_to_buy(armor,ArmorName,ArmorCost) :- healthy,rich, 
-                                            \+ wants_to_buy(weapon,_,_),
-                                            can_buy(armor,ArmorName,ArmorCost),
-                                            position(enemy,EnemyName,_,_),enemy_stats(EnemyName,ranged,_),
-                                            \+ (% there isn't any another armor that has better protection
-                                            can_buy(armor,OtherArmorName,ArmorCost),
-                                            armor_stats(OtherArmorName,OtherProtection),
-                                            armor_stats(ArmorName,Protection),
-                                            Protection < OtherProtection
-                                            ).
                                         % if there is a shopkeeper get away from it
-action(avoid_shopkeeper(Direction)) :- position(enemy,'shopkeeper',SKR,SKC),
+/*action(avoid_shopkeeper(Direction)) :- position(enemy,'shopkeeper',SKR,SKC),
                                         position(agent,_,AR,AC),
                                         is_close(SKR,SKC,AR,AC),
                                         next_step(AR,AC,SKR,SKC, SD),
                                         close_direction(SD,Direction),
                                         resulting_position(AR,AC, NewR, NewC,Direction),
                                         (position(object,tile,NewR,NewC);position(object,door,NewR,NewC)).
+*/
 %action(activate_portal):- stepping_on(agent,object,portal).
 %action(pick):- stepping_on(agent,ObjType,ObjName),wants_to_buy(ObjType,ObjName,_).
+
+action(quaff(Potion)) :- \+ healthy, has(agent,potion,Potion).
+
+action(eat(Food)) :- \+ healthy, has(agent,comestible,Food).
+
+action(wield(Wnew)) :-  wields_weapon(agent,Wold), weapon_stats(Wold,OldStats),has(agent,weapon,Wnew), weapon_stats(Wnew,NewStats), NewStats > OldStats .
+
+%attack an enemy
+%if agent is near an enemy, attack it
+%it is assumed the agent will always win against enemies, which is not true
+%Requirements:
+%   -agent at a given position
+%   -enemy at a given position
+%   -agent and enemy are near each other (the positions are close)
+%after this action we need to replan
+
+action(attack(Direction)) :- position(agent,_,R1,C1), position(enemy,_,R2,C2), is_close(R1,C1,R2,C2), next_step(R1,C1,R2,C2,Direction), battle_begin .
+
+%pick up gold
+%if agent is stepping on gold, he has to pick it up
+%restricted to gold because other objects could be the ones from the shop
+%requirements:
+%   -agent is stepping on gold
+%   -gold is pickable
+
+action(pick) :- stepping_on(agent,gold,_), is_pickable(gold), battle_begin .
+
+%default behaviour -> if you have a plan, follow it
+%Requirements:
+%   -agent has a plan and is following it
+%   -the plan tells to go in direction Direction
+
+action(followPlan(Direction)) :- onPlan(agent), plannedMove(Direction), battle_begin .
+
+%default behavior -> create a plan if you don't have one and do its first action
+%Requirements:
+%   - agent has no plan to follow
+
+action(plan) :- \+ onPlan(agent), battle_begin .
+
 
 
 action(buy_item(ObjCost,ObjType,ObjName)):-stepping_on(agent,ObjType,ObjName),wants_to_buy(ObjType,ObjName,ObjCost).  
@@ -91,15 +127,22 @@ action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                     \+ shopping_done.
 
 
-action(sit) :- battle_begin.
+action(pick_key) :- stepping_on(agent,tool,'skeleton key').
 
+
+action(get_key(Direction)) :- position(agent,_,R1,C1), position(tool,'skeleton key',R2,C2), next_step(R1,C1,R2,C2,Direction), \+ wants_to_buy(_,_,_),\+ battle_begin.
+
+action(apply(Direction)) :- position(agent,_,AR,AC), position(object,door,DR,DC), DC is AC+1, DR is AR , next_step(AR,AC,DR,DC,Direction).
 
 action(get_into_battlefield(east)) :- shopping_done,position(agent,_,AR,AC),\+ battle_begin,
-                                      ((position(object,tile,TR,TC),TC is AC+1,TR is AR);(battlefield_start(BR,BC), BR is AR)).
+                                      ((position(object,tile,TR,TC),TC is AC+1,TR is AR);(battlefield_start(BR,_), BR is AR)).
 
 action(get_into_battlefield(south)) :- shopping_done,position(agent,_,AR,AC),\+ battle_begin,
                                         \+ (position(object,tile,TR,TC),TC is AC+1,TR is AR).
-can_move(R,C,D) :- position(agent,_,R,C),resulting_position(R, C, NewR, NewC, D),position(Type,_,NewR,NewC),Type \= enemy.
+
+%apply key if in front of locked door
+
+
 %exit the shop if it doesn't want to buy anything else
 action(exit_shop(Direction)) :- position(agent,_,AR,AC),
                                 position(object,door,DR,DC),
@@ -108,15 +151,15 @@ action(exit_shop(Direction)) :- position(agent,_,AR,AC),
                                 (position(object,door,NewR,NewC);position(object,tile,NewR,NewC)),
                                 %can_move(AR,AC,Direction),
                                 \+ (
-                                    position(object,door,OtherDR,OtherDC),
+                                    position(object,door,_,OtherDC),
                                     OtherDC<DC
                                 ), 
                                 %avoid_shopkeeper(AR,AC,Direction,ActualDirection),
                                 \+ wants_to_buy(_,_,_),
                                 \+ shopping_done,
                                 \+ battle_begin.
-%if no other action is avaialable sit to make a turn pass
-action(sit) :- true.
+
+
 % -----------------------------------------------------------------------------------------------
 
 % test the different condition for closeness
@@ -124,6 +167,13 @@ action(sit) :- true.
 is_close(R1,C1,R2,C2) :- R1 == R2, (C1 is C2+1; C1 is C2-1).
 is_close(R1,C1,R2,C2) :- C1 == C2, (R1 is R2+1; R1 is R2-1).
 is_close(R1,C1,R2,C2) :- (R1 is R2+1; R1 is R2-1), (C1 is C2+1; C1 is C2-1).
+
+%wheter a position is safe or not
+unsafe_position(R, C) :- position(enemy, _, R, C).
+
+unsafe_position(_,_) :- fail.
+
+safe_position(R,C) :- \+ unsafe_position(R,C).
 
 % compute the direction given the starting point and the target position
 % check if the direction leads to a safe position
@@ -136,22 +186,6 @@ next_step(R1,C1,R2,C2, D) :-
         ( C1 > C2 -> D = northwest; D = northeast );
         ( C1 > C2 -> D = southwest; D = southeast )
     ))).
-
-/* % check if the selected direction is safe
-safe_direction(R, C, D, Direction) :- resulting_position(R, C, NewR, NewC, D),
-                                      ( safe_position(NewR, NewC) -> Direction = D;
-                                      % else, get a new close direction
-                                      % and check its safety
-                                      close_direction(D, ND), safe_direction(R, C, ND, Direction)
-                                      ).
-
-% a square if unsafe if there is a trap or an enemy
-unsafe_position(R, C) :- position(trap, _, R, C).
-unsafe_position(R, C) :- position(enemy, _, R, C).
-unsafe_position(R,C) :- position(enemy, _, ER, EC), is_close(ER, EC, R, C). */
-
-%
-
 
 %%%% known facts %%%%
 opposite(north, south).
@@ -212,5 +246,7 @@ weapon_stats('long sword',5).
 weapon_stats('morning star',6).
 weapon_stats('katana',7).
 
-enemy_stats('kobold',melee,1).
+enemy_stats('newt',melee,1).
 enemy_stats('stone giant',melee,4).
+
+is_pickable(gold).
