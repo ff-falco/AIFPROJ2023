@@ -143,4 +143,11 @@ def get_stair_location(des_file) :
             (x,y) = eval(pos)
             return (y,x)
         
-
+def get_reference_des(des_file) :
+    for line in des_file.splitlines() :
+        if 'amulet of ESP' in line :
+            #OBJECT:('"',"amulet of ESP"),(1, 1)
+            pos = '(' + line.split('(')[2]
+            (x,y) = eval(pos)
+            return (y,x)
+        

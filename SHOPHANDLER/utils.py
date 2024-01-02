@@ -44,6 +44,14 @@ def perform_action(action, env,kb,planned_actions,obs):
         food_char = message.split('[')[1][0] # Because of the way the message in NetHack works
         action_id = env.actions.index(ord(food_char))
 
+    elif name == 'quaff' :
+        action_id = 52
+        obs, _, _, _ = env.step(action_id)
+
+        message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        food_char = message.split('[')[1][0] # Because of the way the message in NetHack works
+        action_id = env.actions.index(ord(food_char))
+        
     elif name == 'attack' :
         #print(action)
         action_id = DIR_TO_NUM_MAP[args[0]]
@@ -98,7 +106,7 @@ def perform_action(action, env,kb,planned_actions,obs):
         while True:
             action_id = 20
             obs, _, _, _ = env.step(action_id)
-            env.render()
+            #env.render()
 
             #roba del tipo: What do you want to use or apply? [fg or ?*]
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
@@ -106,15 +114,15 @@ def perform_action(action, env,kb,planned_actions,obs):
             action_id = env.actions.index(ord(weapon_char))
 
             obs, _, _, _ = env.step(action_id)
-            env.render()
+            #env.render()
             #appare messaggio: In what direction?
             obs, _, _, _ = env.step(DIR_TO_NUM_MAP[args[0]])
-            env.render()
+            #env.render()
 
             #appare messaggio
             # Unlock it? [yn] (n)
             obs, _, _, _ = env.step(env.actions.index(ord('y')))
-            env.render()
+            #env.render()
 
             # You succeed in unlocking the door.
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
@@ -150,7 +158,7 @@ def perform_action(action, env,kb,planned_actions,obs):
     elif name == 'wield':
         action_id = 78
         obs, _, _, _ = env.step(action_id)
-        env.render()
+        #env.render()
 
         # Example message:
         # What do you want to wield? [- abcdg or ?*]
@@ -195,30 +203,32 @@ def perform_action(action, env,kb,planned_actions,obs):
     elif 'south' in action: action_id = 2
     elif 'west' in action: action_id = 3
     elif 'sit' in action : action_id = 11
-    print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
+    #print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
     obs, reward, done, info = env.step(action_id)
 
     if name == 'apply' :
         message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
         #the door resist
-        while 'The door opens.' not in message :
+        while 'The door opens.' not in message:
+            #env.render()
             obs, reward, done, info = env.step(action_id)
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        
 
 
     return obs, reward, done, info , planned_actions
 
 
 #TODO: add battle to process state
-def process_state(obs: dict, kb: Prolog, in_battle:bool = False):
+def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
 
     #to mantain global information about gold positions
     if in_battle :
-        print('QUAAAAAa')
+       # print('QUAAAAAa')
         gold_pos_list= list(kb.query("position(gold,_,X,Y)"))
-        print(gold_pos_list)
+        #print(gold_pos_list)
         stairs_pos = list(kb.query("position(stairs,_,X,Y)"))[0]
-        print(stairs_pos)
+        #print(stairs_pos)
 
     kb.retractall("position(_,_,_,_)")
 
@@ -264,8 +274,6 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = False):
                     armor=armor[0]
                     kb.asserta(f"position(armor,\'{armor}\',{i},{j})")
                     kb.asserta(f"available_to_buy(armor,\'{armor}\',5)")
-            elif 'shopkeeper' in objs:
-                kb.asserta(f"position(enemy,shopkeeper,{i},{j})")
             elif 'closed door' in objs:
                 kb.asserta(f"position(object,door,{i},{j})")
             elif 'open door' in objs or 'floor' in objs:
@@ -274,7 +282,12 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = False):
                 #print(obj)
                 kb.asserta(f'position(enemy,\'{objs}\',{i},{j})')
             elif 'key' in objs :
-                kb.asserta(f"""position(tool,'skeleton key',{i},{j})""")
+                kb.asserta(f"position(tool,'skeleton key',{i},{j})")
+            elif 'runed broadsword' in objs:
+                kb.asserta(f"position(weapon,'elven broadsword',{i},{j})")
+            elif 'stout spear' in objs:
+                kb.asserta(f"position(weapon,'dwarvish spear',{i},{j})")
+            
 
     
 
@@ -282,7 +295,7 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = False):
     kb.retractall("wields_weapon(_,_)")
     kb.retractall("has(agent,_,_)")
 
-    display_inventory(obs['inv_strs'])
+    #display_inventory(obs['inv_strs'])
 
     for item in obs['inv_strs']:
         item = bytes(item).decode('utf-8').rstrip('\x00')
@@ -290,7 +303,7 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = False):
             # the actual name of the weapon is in position 2
             # qualcosa nomearma (weapon in hand)
             wp = " ".join(item.split()[1:]).split('(')[0].rstrip()
-            print(f'Arma: {wp}')
+            #print(f'Arma: {wp}')
            
             kb.asserta(f"""wields_weapon(agent,'{wp}')""")
             if wp not in AVAIABLE_WEAPONS :
@@ -401,3 +414,111 @@ def extract_monsters(des_file:str):
         monsters_data.append((name,pos_x,pos_y))
     return monsters_data
 
+def make_confuse(env) :
+    message = None
+    while message is None or 'Huh, What?  Where am I?' not in message : #cofusion loop
+        obs ,_ ,_ ,_ = env.step(52) #quaff
+        #env.render()
+        
+        #What do you want to drink? [gi or ?*]
+        message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        potion_char = message.split('[')[1].split()[0][-1]
+        obs ,_ ,_ ,_ =  env.step(env.actions.index(ord(potion_char)))
+        #env.render()
+
+        #Huh, What?  Where am I?
+        
+        message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        #print(f'MESSAGGIO: {message}')
+        global ciao
+        ciao = message
+
+    return obs
+
+def set_health(env,obs, target_health, max_health = 18) :
+    #until not confuso -> drink potion of confusion
+    #read scroll until health is right
+    #use unicorn horn
+    #drop potions
+    #drop scroll
+    if target_health != max_health  : #only have to do if we want to reduce healt
+
+        obs = make_confuse(env)
+
+        while int(obs['blstats'][10]) > target_health : #current health grater than target
+            
+            obs,_,_,_ = env.step(54)
+            #env.render()
+
+            #What do you want to read? [f or ?*]
+            message = bytes(obs['message']).decode('utf-8').rstrip('\x00') #parse just life drinking
+
+            if 'You feel less confused now.' in message : #means he has to be confused again
+                env.step(env.actions.index(ord('a'))) #in pos 'a' there's the weapon of the agent, so he can't read it
+                #env.render()
+                obs = make_confuse(env)
+                continue #need to start from reading again
+            
+            
+            scroll_char = message.split('[')[1].split()[0][-1] #guaranteed to be the last since we are the ones deciding the ordering
+
+            obs,_,_,_ = env.step(env.actions.index(ord(scroll_char)))
+            #env.render()
+
+            message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+
+            if 'You feel less confused now.' in message : #means he has to be confused again
+                obs = make_confuse(env)
+                continue #need to start from reasing again
+
+        #we have reached target health
+        #use unicorn horn to remove confusion
+        while 'You feel less confused now.' not in message :
+            obs, _, _,_ = env.step(20) #apply
+            #env.render()
+
+            #there's a similar prompt to the ones before
+            message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+            unicorn_char = message.split('[')[1].split()[0][-1]
+            print(message)
+
+            obs,_,_,_ = env.step(env.actions.index(ord(unicorn_char))) #applies unicorn horn
+            #env.render()
+            message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        
+
+    #now we have to drop items
+    #problem: either confusion passed by itself or by applying unicorn horn (it' a roll everytime for it to work)
+    items_to_remove = 0
+    for item in obs['inv_strs']:
+        item = bytes(item).decode('utf-8').rstrip('\x00')
+        if 'unicorn horn' in item : #drop last item
+            items_to_remove += 1
+        elif 'of confusion' in item:
+            items_to_remove += 1 
+        elif 'scroll' in item :
+            items_to_remove += 1
+
+    if target_health == max_health :
+        items_to_remove = 3
+
+    for _ in range(items_to_remove) :
+        obs,_,_,_ = env.step(27)
+        #env.render()
+
+        #message similar to other ones
+        message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        last_item_char = message.split('[')[1].split()[0][-1]
+
+        obs, reward, done, info = env.step(env.actions.index(ord(last_item_char)))
+        #env.render()
+
+    return obs , reward, done ,info
+
+def check_death(env,obs) :
+    message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+    if 'Die?' in message :
+        oss, reward, done, info = env.step(env.actions.index(ord('y')))
+        return True, oss, reward, done, info
+    else :
+        return False, obs, None, None, None

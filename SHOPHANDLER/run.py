@@ -93,12 +93,14 @@ def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) -
     #For the shop we use seeds that are multiple of the original seed
     levelnumber =math.floor(seed/200)
     quality=levelnumber-1
-    remainingitems=avaiableitems
+    remainingitems=avaiableitems.copy()
     #If the shop has 5 items there is an item from a highest quality, or lowest inthe level 5 case, we refresh the array with the remaining avaible items.
     for i in others:
-        remainingitems.pop(remainingitems.index(i))
+        if i in remainingitems :
+            remainingitems.pop(remainingitems.index(i))
+
     if remainingitems.__len__()==0:
-        remainingitems=avaiableitems
+        remainingitems=avaiableitems.copy()
         if levelnumber==5:
             quality=quality-1
         else: quality=quality+1
