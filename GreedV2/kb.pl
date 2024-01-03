@@ -24,6 +24,12 @@
 :- dynamic battle_begin/0.
 :- dynamic weapon_stats/2.
 :- dynamic level/2.
+
+:- dynamic wears_armor/2.
+:- dynamic armor_stats/2.
+
+:- dynamic onPlan/1.
+:- dynamic plannedMove/1 .
 % SHOP PLANNING PREDICATES
 
 % the agent feels healthy if the health is above the healthiness threshold (in percentage)
@@ -57,7 +63,7 @@ wants_to_buy(Type,Name,Cost) :- \+ healthy,
                                 can_buy(Type,Name,Cost), 
                                 best_healing_option(Type,Name,Cost).
 
-%buy weapons when the wielded weapon cannot beat an enemy in the battlefield 
+%buy equipment when the agent cannot beat the enemy
 %Requirements:
 % - the anget can buy the new weapon
 % - the agent is wielding the current weapon
@@ -65,12 +71,24 @@ wants_to_buy(Type,Name,Cost) :- \+ healthy,
 % - but it beatable with the new weapon
 % - the new weapon is best one available for purchase
 
-wants_to_buy(weapon,WeaponName,WeaponCost) :- can_buy(weapon,WeaponName,WeaponCost),
+wants_to_buy(EquipmentType,EquipmentName,EquipmentCost) :- can_buy(EquipmentType,EquipmentName,EquipmentCost),
                                               wields_weapon(agent,CurrentWeapon),
+                                              wears_armor(agent,CurrentArmor),
                                               position(enemy,EnemyType,_,_),
-                                              \+ is_beatable(EnemyType,CurrentWeapon),
-                                              is_beatable(EnemyType,WeaponName),
-                                              best_weapon_buyable(WeaponName).
+                                              \+ is_beatable(EnemyType,CurrentWeapon,CurrentArmor),
+                                              power_difference(EquipmentType,EquipmentName,Difference),
+                                              Difference > 0, % i am improving the equipment
+                                              best_equippable_buyable(EquipmentName).
+
+%if rich and can't improve its equipment, the agent stocks up on healing items
+%Requirements:
+%   -agent is rich
+%   -agent can buy an item
+%   -the item is the best healing item in the shop
+
+wants_to_buy(Type,Name,Cost) :- rich, 
+                                can_buy(Type,Name,Cost), 
+                                best_healing_option(Type,Name,Cost).
 
 % or buy weapons when rich and the available weapon is better                                              
 % - the agent is rich
@@ -84,32 +102,67 @@ wants_to_buy(weapon,WeaponName,WeaponCost) :- rich,
                                               weapon_stats(CurrentWeapon,StatOld),
                                               weapon_stats(WeaponName,StatNew), 
                                               StatNew > StatOld,
-                                              best_weapon_buyable(WeaponName).
+                                              best_equippable_buyable(WeaponName).
 
-%se hai soldi e vita prendi armor
-% se sei a livelli bassi, e l'armor ha livello più alto se non sei rich la prendi lo stesso
+%if rich and can't improve weapon, try upgrading your armor
+%Requirements
+%   -agent is rich
+%   -can buy a new armor
+%   -he is wearing another armor
+%   -the stats of the new armor is better than the one the agent is wearing
+%   -the new armor is the best one the agent can buy in the shop
 
-%wants_to_buy(armor,ArmorName,ArmorCost) :- rich, can_buy(armor,ArmorName,ArmorCost), 
+wants_to_buy(armor,ArmorName,ArmorCost) :- rich, 
+                                            can_buy(armor,ArmorName,ArmorCost),
+                                            wears_armor(agent,CurrentArmor),
+                                            armor_stats(CurrentArmor,StatOld),
+                                            armor_stats(ArmorName,StatNew),
+                                            StatNew > StatOld,
+                                            best_equippable_buyable(ArmorName).
 
-%the best weapon to buy is the one that has not other weapon with more damage
+
+%best equipment is the one with highest power that i can buy
 %Requirements:
-% - the weapon has a name and a damage power
-% - the is isn't another weapon available for purchase s.t. it has better damage power      
-best_weapon_buyable(Name):-  weapon_stats(Name,Damage),
-                                        \+ (
-                                            can_buy(weapon,OtherName,_),
-                                            weapon_stats(OtherName,OtherDamage), 
-                                            Damage < OtherDamage
-                                        ).
+%   -equipment has certain Power
+%   -does not exists another equipments s.t.
+%       -the agent can buy it
+%       -its power is greater than the one of the original equipment
+
+best_equippable_buyable(Name) :- can_buy(Type,Name,_),
+                                power_difference(Type,Name,Difference),
+                                \+ (
+                                    can_buy(OtherType,OtherName,_),
+                                    power_difference(OtherType,OtherName,OtherDifference),
+                                    Difference < OtherDifference
+                                ).
+
+
+
+power_difference(weapon,NewWeapon,Difference) :- wields_weapon(agent,OldWeapon),
+                                                    weapon_stats(OldWeapon,Damage),
+                                                    weapon_stats(NewWeapon,NewDamage),
+                                                    Difference is NewDamage - Damage.
+
+power_difference(armor,NewArmor,Difference) :- wears_armor(agent,OldArmor),
+                                                armor_stats(OldArmor,Defense),
+                                                armor_stats(NewArmor,NewDefense),
+                                                Difference is NewDefense - Defense.
 
 %an enemy is beatable with a weapon if the weapon has more power than the enemy
 %Requirements:
 % - the weapon has a name and damage 
+% - armor had name and defense
 % - the enemy has a name and power
-% - the weapon is more powerful than the enemy
-is_beatable(Enemy,Weapon) :- weapon_stats(Weapon,Damage),
-                             enemy_stats(Enemy,_,EnemyPower),
-                             Damage >= EnemyPower.
+% - the total power of the equipment is higher than the enemy power
+is_beatable(Enemy,Weapon,Armor) :- weapon_stats(Weapon,Damage),
+                                    armor_stats(Armor,Defense),
+                                    enemy_stats(Enemy,_,EnemyPower),
+                                    Sum is Damage + Defense,
+                                    Sum >= EnemyPower.
+
+
+
+
 %drink a potion when not healthy
 %Requirements:
 % - the agent doesn't feel healthy
@@ -134,6 +187,22 @@ action(wield(Wnew)) :-  wields_weapon(agent,Wold),
                         has(agent,weapon,Wnew), 
                         weapon_stats(Wnew,NewStats), 
                         NewStats > OldStats .
+
+%wear the best armor in inventory
+%Requirements:
+% - the agent is wearing an armor
+% - the armor has a name and armor power
+% - the agent has another armor
+% - the other armor has better armor power
+
+action(wear(Aold,Anew)) :- wears_armor(agent,Aold),
+                        armor_stats(Aold,OldStats),
+                        has(agent,armor,Anew),
+                        armor_stats(Anew,NewStats),
+                        NewStats > OldStats .
+
+%----------------------- BATTLE ONLY PREDICATES------------------------------
+
 %attack an enemy
 %if agent is near an enemy, attack it
 %it is assumed the agent will always win against enemies, which is not true
@@ -141,6 +210,7 @@ action(wield(Wnew)) :-  wields_weapon(agent,Wold),
 %   -agent at a given position
 %   -enemy at a given position
 %   -agent and enemy are near each other (the positions are close)
+%   -agent is in the battle phase
 %after this action we need to replan
 
 action(attack(Direction)) :- position(agent,_,R1,C1), 
@@ -154,6 +224,7 @@ action(attack(Direction)) :- position(agent,_,R1,C1),
 %requirements:
 %   -agent is stepping on gold
 %   -gold is pickable
+%   -agent is in battle phase
 action(pick) :- stepping_on(agent,gold,_), 
                 is_pickable(gold), 
                 battle_begin.
@@ -173,6 +244,8 @@ action(followPlan(Direction)) :- onPlan(agent),
 action(plan) :- \+ onPlan(agent), 
                 battle_begin .
 
+
+%--------- SHOP ONLY PREDICATES ----------------------------
 %if you step on a weapon and it is weapon you want to buy buy it
 action(buy_item(ObjCost,ObjType,ObjName)):- stepping_on(agent,ObjType,ObjName),
                                             wants_to_buy(ObjType,ObjName,ObjCost).  
@@ -181,7 +254,6 @@ action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                   position(ItemType,ItemName,IR,IC),
                                   position(agent,_,AR,AC),
                                   next_step(AR,AC,IR,IC,Direction),
-                                  \+ stepping_on(agent,ItemType,ItemName),
                                   \+ shopping_done.
 
 % pick a key when you stepped on it
@@ -191,7 +263,6 @@ action(pick_key) :- stepping_on(agent,tool,'skeleton key').
 action(get_key(Direction)) :- position(agent,_,R1,C1), 
                               position(tool,'skeleton key',R2,C2), 
                               next_step(R1,C1,R2,C2,Direction), 
-                              \+ wants_to_buy(_,_,_),
                               \+ battle_begin.
 
 %use the apply action in the chosen direction
@@ -213,7 +284,6 @@ action(exit_shop(Direction)) :- position(agent,_,AR,AC),
                                     position(object,door,_,OtherDC),
                                     OtherDC<DC
                                 ), 
-                                \+ wants_to_buy(_,_,_),
                                 \+ shopping_done,
                                 \+ battle_begin.
 
@@ -306,21 +376,27 @@ healing_stats(comestible,orange,10).
 healing_stats(comestible,banana,10).
 healing_stats(potion,healing,20).
 
-armor_stats('chain mail',3).
-armor_stats('bronze plate mail',4).
-armor_stats('dwarvish mithril-coat',5).
-armor_stats('elven mithril-coat',6).
-armor_stats('chain mail',7).
+
+equip_stats(Equipment,Power) :- armor_stats(Equipment,Power).
+equip_stats(Equipment,Power) :- weapon_stats(Equipment,Power).
+
+equipment_type(Equipment,weapon) :- weapon_stats(Equipment,_).
+equipment_type(Equipment,armor) :- armor_stats(Equipment,_).
+
+armor_stats('red dragon scales',3).
+armor_stats('scale mail',4).
+armor_stats('elven mithril-coat',5).
+armor_stats('dwarvish mithril-coat',6).
+armor_stats('red dragon scale mail',7).
 
 
 weapon_stats('spear',3).
 weapon_stats('dwarvish spear',4).
-weapon_stats('stout spear',4).
 weapon_stats('morning star',5).
 weapon_stats('elven broadsword',6).
 weapon_stats('trident',7).
 
-enemy_stats('newt',melee,1).
+enemy_stats('newt',melee,0).
 enemy_stats('iguana',melee,3).
 enemy_stats('giant ant',melee,4).
 enemy_stats('lemure',melee,5).
