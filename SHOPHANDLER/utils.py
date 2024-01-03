@@ -182,8 +182,8 @@ def perform_action(action, env,kb,planned_actions,obs):
         kb.asserta(f"money({old_money-cost})")
         # if it's buying arrows it will update the number of arrows the agent has
         if ('armor' in item_type):
-            healthiness=int(list(kb.query('money_threshold(X)'))[0]['X'])
-            protection= int(list(kb.query(f"armor_stats({item_name},X)"))[0]['X'])
+            healthiness=int(list(kb.query('health_threshold(X)'))[0]['X'])
+            protection= int(list(kb.query(f"armor_stats(\'{item_name}\',X)"))[0]['X'])
             kb.retractall("health_threshold(X)")
             kb.asserta(f"health_threshold({protection*0.25 + healthiness})")
         if('arrow' in item_type):
@@ -203,7 +203,6 @@ def perform_action(action, env,kb,planned_actions,obs):
     elif 'south' in action: action_id = 2
     elif 'west' in action: action_id = 3
     elif 'sit' in action : action_id = 11
-    #print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
     obs, reward, done, info = env.step(action_id)
 
     if name == 'apply' :
@@ -306,6 +305,11 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
             #print(f'Arma: {wp}')
            
             kb.asserta(f"""wields_weapon(agent,'{wp}')""")
+
+            objs=list(filter(lambda x: x in item,AVAIABLE_WEAPONS))
+            if len(objs)!=0:
+                wp=objs[0]
+
             if wp not in AVAIABLE_WEAPONS :
                 kb.retractall(f"""weapon_stats('{wp}',_)""")
                 kb.assertz(f"""weapon_stats('{wp}',0)""")

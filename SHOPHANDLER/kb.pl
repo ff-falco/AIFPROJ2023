@@ -24,6 +24,8 @@
 :- dynamic battle_begin/0.
 :- dynamic weapon_stats/2.
 :- dynamic level/2.
+:- dynamic onPlan/1.
+:- dynamic plannedMove/1.
 % SHOP PLANNING PREDICATES
 
 % the agent feels healthy if the health is above the healthiness threshold (in percentage)
@@ -181,7 +183,7 @@ action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                   position(ItemType,ItemName,IR,IC),
                                   position(agent,_,AR,AC),
                                   next_step(AR,AC,IR,IC,Direction),
-                                  \+ stepping_on(agent,ItemType,ItemName),
+                                  %\+ stepping_on(agent,ItemType,ItemName),
                                   \+ shopping_done.
 
 % pick a key when you stepped on it
@@ -191,7 +193,7 @@ action(pick_key) :- stepping_on(agent,tool,'skeleton key').
 action(get_key(Direction)) :- position(agent,_,R1,C1), 
                               position(tool,'skeleton key',R2,C2), 
                               next_step(R1,C1,R2,C2,Direction), 
-                              \+ wants_to_buy(_,_,_),
+                              %\+ wants_to_buy(_,_,_),
                               \+ battle_begin.
 
 %use the apply action in the chosen direction
