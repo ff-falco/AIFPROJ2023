@@ -251,28 +251,28 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
             obj_type=chr(obs['chars'][i][j]) # characters indicates the type of object
             if obj_type == '!':
                 kb.asserta(f"position(potion,healing,{i},{j})")
-                kb.asserta(f"available_to_buy(potion,healing,1)")
+                kb.asserta(f"available_to_buy(potion,healing,5)")
             elif obj_type == ')':
                 arrow= list(filter(lambda x:x in objs,AVAIABLE_ARROWS))
                 if len(arrow)!=0:# if the list isn't empty it's an arrow otherwise it's a weapon
                     arrow=arrow[0]
                     kb.asserta(f"position(arrow,\'{arrow}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(arrow,\'{arrow}\',1)")
+                    kb.asserta(f"available_to_buy(arrow,\'{arrow}\',2)")
                 weapon= list(filter(lambda x:x in objs,AVAIABLE_WEAPONS))
                 if len(weapon)!=0 :
                     weapon = weapon[0]
                     kb.asserta(f"position(weapon,\'{weapon}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(weapon,\'{weapon}\',10)")
+                    kb.asserta(f"available_to_buy(weapon,\'{weapon}\',15)")
                 #special case: the katana appears as a samurai sword until it's stepped on
                 if 'samurai sword' in objs:
-                    kb.asserta(f"available_to_buy(weapon,\'katana\',10)")
+                    kb.asserta(f"available_to_buy(weapon,\'katana\',15)")
                     kb.asserta(f"position(weapon,\'katana\',{i},{j})")
             elif obj_type == '[': 
                 armor= list(filter(lambda x:x in objs,AVAIABLE_ARMORS))
                 if len(armor)!=0:
                     armor=armor[0]
                     kb.asserta(f"position(armor,\'{armor}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(armor,\'{armor}\',5)")
+                    kb.asserta(f"available_to_buy(armor,\'{armor}\',20)")
             elif 'closed door' in objs:
                 kb.asserta(f"position(object,door,{i},{j})")
             elif 'open door' in objs or 'floor' in objs:

@@ -17,8 +17,6 @@
 
 :- dynamic corridors/0.
 
-:- dynamic open_spaces/0.
-
 :- dynamic shopping_done/0.
 :- dynamic battlefield_start/2.
 :- dynamic battle_begin/0.
