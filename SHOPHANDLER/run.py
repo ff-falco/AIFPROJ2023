@@ -126,6 +126,9 @@ def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) -
         choosenitem=AVAIABLE_WEAPONS[quality]
         choosensymbol=SYMBOLS[2]
         lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+        """
+        lvl.add_line("OBJECT:('"+choosensymbol+"', \""+choosenitem+"\"),("+str(pos[0])+","+str(pos[1])+")")
+        #, blessed ,+"+str(powerup))"""
 
     else:
         choosenitem=AVAIABLE_ARMORS[quality]

@@ -209,7 +209,7 @@ def perform_action(action, env,kb,planned_actions,obs):
     if name == 'apply' :
         message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
         #the door resist
-        while 'The door opens.' not in message:
+        while 'The door opens.' not in message and not done:
             #env.render()
             obs, reward, done, info = env.step(action_id)
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
@@ -350,6 +350,7 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
 
     # processa messaggio sullo schermo
     message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+    #print(f'MESSAGE:{message}')
     if 'The door opens' in message:
         kb.asserta("shopping_done")
     if 'You see here' in message:
@@ -369,6 +370,8 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
             kb.asserta(f'stepping_on(agent,potion,healing)')
         if 'key' in message:
             kb.asserta("""stepping_on(agent,tool,'skeleton key')""")
+        #""" if 'stout spear' in message:
+        #    kb.asserta(f'stepping_on(agent, weapon, \'stout spear\')') """
 
         #model stepping_on gold
     if in_battle :
@@ -444,7 +447,8 @@ def set_health(env,obs, target_health, max_health = 18) :
     if target_health != max_health  : #only have to do if we want to reduce healt
 
         obs = make_confuse(env)
-
+        if max_health < target_health or int(obs['blstats'][10])  < target_health:
+            raise Exception("max_health or current health less than target")
         while int(obs['blstats'][10]) > target_health : #current health grater than target
             
             obs,_,_,_ = env.step(54)
@@ -470,7 +474,10 @@ def set_health(env,obs, target_health, max_health = 18) :
             if 'You feel less confused now.' in message : #means he has to be confused again
                 obs = make_confuse(env)
                 continue #need to start from reasing again
-
+        
+        # PROVA 
+        if message == None:
+            message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
         #we have reached target health
         #use unicorn horn to remove confusion
         while 'You feel less confused now.' not in message :
@@ -480,7 +487,7 @@ def set_health(env,obs, target_health, max_health = 18) :
             #there's a similar prompt to the ones before
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
             unicorn_char = message.split('[')[1].split()[0][-1]
-            print(message)
+            #print(message)
 
             obs,_,_,_ = env.step(env.actions.index(ord(unicorn_char))) #applies unicorn horn
             #env.render()
