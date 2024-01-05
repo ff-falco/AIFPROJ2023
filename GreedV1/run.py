@@ -24,50 +24,62 @@ def render_des_file(des_file):
     env.render()
     plt.imshow(obs['pixel'][0:1000, 0:1000])
 
-
+AVAIABLE_OBJECTS=[
+'healing',
+]
 
 AVAIABLE_ITEMS=[
 'healing',
 ]
 
 #Avaiable weapons from the weakest to the strongest
+AVAIABLE_ARROWS=[
+'orcish arrow', #Level 1 
+'silver arrow', #Level 2
+'arrow', #Level 3
+'elven arrow', #Level 4
+'ya' #Level 5
+]
 
 AVAIABLE_WEAPONS=[
-'orcish dagger', #Level 1
-'stiletto', #Level 2
-'long sword', #Level 3
-'morning star', #Level 4
-'katana', #Level 5
-'tsurugi'#Level 5 (bonus)
+'spear', 
+'dwarvish spear', #stout spear
+'morning star',  #120
+'elven broadsword', # runed broadsword
+'trident'
 ]
 
 AVAIABLE_ARMORS=[
-'scale mail', 
-'bronze plate mail', 
-'dwarvish mithril-coat',
+'red dragon scales',
+'scale mail', #250
 'elven mithril-coat',
-'chain mail',
-'splint mail'  
+'dwarvish mithril-coat', 
+'red dragon scale mail'
 ]
 
 SYMBOLS=[
 '!', #healing potion
+')', #arrows
 ')', #weapons
 '[', #armor
 ]
 
+MOB=['newt', #Level 1 #1
+     'gecko',   #Level 2 #3
+     'manes',   #Level 3 #4
+     'lemure']  #Level 4 #5
+
+MINIBOSS=['iguana',  #Level 2 #4
+          'dog', #Level 3 #5
+          'lizard'] #Level 4 #6
+
+BOSS=['rock mole', #Level 2  #4
+      'jellyfish', #Level 3  #5
+      'giant beetle', #Level 4 #6
+        'yeti']  #Level 5 #7
 
 
-SYMBOLS=[
-'!', #healing potion
-')', #weapons
-'[', #armor
-]
-
-avaiableitems=['HEALING','WEAPON','ARMOR']
-
-
-
+avaiableitems=['HEALING','ARROWS','WEAPON','ARMOR']
 
 
 def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) ->str:
@@ -81,14 +93,17 @@ def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) -
     #For the shop we use seeds that are multiple of the original seed
     levelnumber =math.floor(seed/200)
     quality=levelnumber-1
-    remainingitems=['HEALING','WEAPON','ARMOR']
+    remainingitems=avaiableitems.copy()
     #If the shop has 5 items there is an item from a highest quality, or lowest inthe level 5 case, we refresh the array with the remaining avaible items.
-    
     for i in others:
-        remainingitems.pop(remainingitems.index(i))
-        if remainingitems.__len__()==0:
-            remainingitems=['HEALING','WEAPON','ARMOR']
-            quality=quality+1
+        if i in remainingitems :
+            remainingitems.pop(remainingitems.index(i))
+
+    if remainingitems.__len__()==0:
+        remainingitems=avaiableitems.copy()
+        if levelnumber==5:
+            quality=quality-1
+        else: quality=quality+1
 
     choice=seed%remainingitems.__len__()
     choosen=remainingitems[choice]
@@ -99,63 +114,78 @@ def addobject(lvl: LevelGenerator, seed:int, posx:int ,posy:int,others: [str]) -
         choosensymbol=SYMBOLS[0]
         lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
 
+    elif choosen=='ARROWS':
+        choosenitem=AVAIABLE_ARROWS[quality]
+        choosensymbol=SYMBOLS[1]
+        #In the arrow case we are spawning three of them, it's enough to kill every mob
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy))
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+1))
+        lvl.add_object(name=choosenitem,symbol=choosensymbol,place=(posx,posy+2))
+
     elif choosen=='WEAPON':
         choosenitem=AVAIABLE_WEAPONS[quality]
-        choosensymbol=SYMBOLS[1]
+        choosensymbol=SYMBOLS[2]
         lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
+        """
+        lvl.add_line("OBJECT:('"+choosensymbol+"', \""+choosenitem+"\"),("+str(pos[0])+","+str(pos[1])+")")
+        #, blessed ,+"+str(powerup))"""
 
     else:
         choosenitem=AVAIABLE_ARMORS[quality]
-        choosensymbol=SYMBOLS[2]
+        choosensymbol=SYMBOLS[3]
         lvl.add_object(name=choosenitem,symbol=choosensymbol,place=pos)
         
     return choosen
     
-def fillwithobj(lvl: LevelGenerator,seed: int, levelnumber:int):
+def fillwithobj(lvl: LevelGenerator,seed: int):
+    """
+    fillwithobj manage the number of the items spawned depending of the number, further details are explained in the levelgenerator notebook.
+    """
     random.seed(seed)
-    numitem=random.randint(3,5) 
+    levelnumber=math.floor(seed/200)
+
     if levelnumber==1:
-        if seed<=60:
+        if seed<=360:
             numitem=3
-        elif seed<=190:
+        elif seed<=390:
             numitem=4
         else: 
             numitem=5
 
     elif levelnumber==2:
-        if seed<=100:
+        if seed<=500:
             numitem=3
-        elif seed<=180:
+        elif seed<=580:
             numitem=4
         else: 
             numitem=5
 
-    elif levelnumber==3:
-        if seed<=60:
+    if levelnumber==3:
+        if seed<=660:
             numitem=3
-        elif seed<=160:
+        elif seed<=760:
             numitem=4
         else: 
             numitem=5
 
-    elif levelnumber==4:
-        if seed<=40:
+    if levelnumber==4:
+        if seed<=840:
             numitem=3
-        elif seed<=100:
+        elif seed<=900:
             numitem=4
         else: 
             numitem=5
 
-    elif levelnumber==5:
-        if seed<=10:
+    if levelnumber==5:
+        if seed<=1010:
             numitem=3
-        elif seed<=40:
+        elif seed<=1040:
             numitem=4
         else: 
             numitem=5
-
+            
     others=[]
-     
+    numitem=random.randint(3,5)  
     #In the first level a healing potion is guaranteed, the other choices are pseudo-random (depending on the seed)  
     if numitem==3:
         if levelnumber==1:
@@ -189,8 +219,7 @@ def fillwithobj(lvl: LevelGenerator,seed: int, levelnumber:int):
 
 
 #createshop is the function that creates the shop in his complete form, with items, shopkeeper and well defined geometry.
-
-def createshop(levelnumber: int,startingseed: int):
+def createshop(levelnumber: LevelGenerator,startingseed: int):
     map="""||||||||||||||||
 |...............
 |...........||||
@@ -199,7 +228,7 @@ def createshop(levelnumber: int,startingseed: int):
 |...........|   
 |...........|     
 |||||||||||||"""
-    seed=startingseed
+    seed=startingseed+200*levelnumber
     lvl=LevelGenerator(map=map,lit=True,flags=['premapped','shortsighted'])
     lvl.add_line("#LEVEL: "+str(levelnumber))
     lvl.add_line("#SEED: "+str(seed))
@@ -211,36 +240,14 @@ def createshop(levelnumber: int,startingseed: int):
     lvl.add_door("locked", place=(12,1))
 
     
-    fillwithobj(lvl,seed,levelnumber)
+    fillwithobj(lvl,seed)
 
     
-
     return lvl.get_des()
-
-seed=random.randint(1,200)
-level=random.randint(1,5)
-render_des_file(createshop(level,seed))
 
 #-------------------------BATTLEFIELD DEFINITION----------------------------
 
-
-MOB=['newt', #Level 1 #1
-     'iguana',   #Level #3
-     'giant ant',   #Level 3 #4
-     'lemure']  #Level 4 #5
-
-MINIBOSS=['paper golem',  #Level 2 #4
-          'dog', #Level 3 #5
-          'lizard'] #Level 4 #6
-
-BOSS=['rock mole', #Level 2  #4
-      'jellyfish', #Level 3  #5
-      'giant beetle', #Level 4 #6
-        'yeti']  #Level 5 #7
-
 #In this section we define the geometry of the battlefields that have to be merged with the shop
-
-
 
 minibossmap="""                    ||||||||||||
                     |..........|

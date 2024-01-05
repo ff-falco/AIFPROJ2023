@@ -80,7 +80,7 @@ wants_to_buy(EquipmentType,EquipmentName,EquipmentCost) :- can_buy(EquipmentType
                                               Difference > 0, % i am improving the equipment
                                               best_equippable_buyable(EquipmentName).
 
-%if rich and can't improve its equipment, the agent stocks up on healing items
+%the agent stocks up on healing items
 %Requirements:
 %   -agent is rich
 %   -agent can buy an item
@@ -90,35 +90,19 @@ wants_to_buy(Type,Name,Cost) :- rich,
                                 can_buy(Type,Name,Cost), 
                                 best_healing_option(Type,Name,Cost).
 
-% or buy weapons when rich and the available weapon is better                                              
-% - the agent is rich
-% - tha agent can buy the new weapon
-% - the new weapon is better than the current one
-% - the new weapon is best one available for purchase
 
-wants_to_buy(weapon,WeaponName,WeaponCost) :- rich,
-                                              can_buy(weapon,WeaponName,WeaponCost), 
-                                              wields_weapon(agent,CurrentWeapon),
-                                              weapon_stats(CurrentWeapon,StatOld),
-                                              weapon_stats(WeaponName,StatNew), 
-                                              StatNew > StatOld,
-                                              best_equippable_buyable(WeaponName).
-
-%if rich and can't improve weapon, try upgrading your armor
-%Requirements
+%then the agent improves its equipment if he is still rich
+%Requirements:
 %   -agent is rich
-%   -can buy a new armor
-%   -he is wearing another armor
-%   -the stats of the new armor is better than the one the agent is wearing
-%   -the new armor is the best one the agent can buy in the shop
+%   -agent can buy a certain equipment for a certain price
+%   -that equipment is better w.r.t. the respective type of equip. the agent is wearing
+%   -the equipment considered is the best one available in the shop
 
-wants_to_buy(armor,ArmorName,ArmorCost) :- rich, 
-                                            can_buy(armor,ArmorName,ArmorCost),
-                                            wears_armor(agent,CurrentArmor),
-                                            armor_stats(CurrentArmor,StatOld),
-                                            armor_stats(ArmorName,StatNew),
-                                            StatNew > StatOld,
-                                            best_equippable_buyable(ArmorName).
+wants_to_buy(EquipmentType,EquipmentName,EquipmentCost) :- rich,
+                                              can_buy(EquipmentType,EquipmentName,EquipmentCost),
+                                              power_difference(EquipmentType,EquipmentName,Difference),
+                                              Difference > 0, % i am improving the equipment
+                                              best_equippable_buyable(EquipmentName).
 
 
 %best equipment is the one with highest power that i can buy
@@ -222,10 +206,12 @@ action(attack(Direction)) :- position(agent,_,R1,C1),
 %if agent is stepping on gold, he has to pick it up
 %restricted to gold because other objects could be the ones from the shop
 %requirements:
+%   -agent is healthy
 %   -agent is stepping on gold
 %   -gold is pickable
 %   -agent is in battle phase
-action(pick) :- stepping_on(agent,gold,_), 
+action(pick) :- healthy,
+                stepping_on(agent,gold,_), 
                 is_pickable(gold), 
                 battle_begin.
 
@@ -237,6 +223,15 @@ action(pick) :- stepping_on(agent,gold,_),
 action(followPlan(Direction)) :- onPlan(agent), 
                                  plannedMove(Direction), 
                                  battle_begin.
+
+%not healty default behaviour -> create a plan to go towards the exit
+%Requirements:
+%   -agent is not healthy
+%   -agent is not following a plan
+%   -agent is in battle phase
+action(plan_escape) :-  \+ healthy,
+                        \+ onPlan(agent),
+                        battle_begin.
 
 %default behavior -> create a plan if you don't have one and do its first action
 %Requirements:
@@ -396,16 +391,16 @@ weapon_stats('morning star',5).
 weapon_stats('elven broadsword',6).
 weapon_stats('trident',7).
 
-enemy_stats('newt',melee,0).
-enemy_stats('iguana',melee,3).
-enemy_stats('giant ant',melee,4).
+enemy_stats('newt',melee,1).
+enemy_stats('gecko',melee,2).
+enemy_stats('manes',melee,4).
 enemy_stats('lemure',melee,5).
-enemy_stats('paper golem',melee,4).
+enemy_stats('iguana',melee,3).
 enemy_stats('dog',melee,5).
 enemy_stats('lizard',melee,6).
 enemy_stats('rock mole',melee,4).
 enemy_stats('jellyfish',melee,5).
-enemy_stats('unicorn',melee,6).
+enemy_stats('giant beetle',melee,6).
 enemy_stats('yeti',melee,7).
 
 is_pickable(gold).

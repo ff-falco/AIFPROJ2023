@@ -65,17 +65,17 @@ SYMBOLS=[
 ]
 
 MOB=['newt', #Level 1 #1
-     'iguana',   #Level #3
-     'giant ant',   #Level 3 #4
+     'gecko',   #Level 2 #3
+     'manes',   #Level 3 #4
      'lemure']  #Level 4 #5
 
-MINIBOSS=['paper golem',  #Level 2 #4
+MINIBOSS=['iguana',  #Level 2 #4
           'dog', #Level 3 #5
           'lizard'] #Level 4 #6
 
 BOSS=['rock mole', #Level 2  #4
       'jellyfish', #Level 3  #5
-      'unicorn', #Level 4 #6
+      'giant beetle', #Level 4 #6
         'yeti']  #Level 5 #7
 
 

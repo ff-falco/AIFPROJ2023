@@ -68,7 +68,7 @@ def perform_action(action, env,kb,planned_actions,obs):
             kb.asserta(f'plannedMove({NUM_TO_DIR_MAP[planned_actions.pop(0)]})')
         else : kb.retractall('onPlan(_)')
 
-    elif 'plan' in action : #have to formulate plan
+    elif 'plan' in action or 'plan_escape' in action : #have to formulate plan
         kb.retractall('plannedMove(_)') #remove past planned move
 
         #get agent pos
@@ -87,7 +87,7 @@ def perform_action(action, env,kb,planned_actions,obs):
         gold_pos = get_closest_gold(gold_pos_list,start)
         #print(f'Gold at:{gold_pos}')
 
-        if gold_pos is None :
+        if gold_pos is None or 'plan_escape' in action :
             gold_pos = target
 
         game_map = obs['chars']
@@ -148,7 +148,7 @@ def perform_action(action, env,kb,planned_actions,obs):
         curr_money = int(list(kb.query('money(X)'))[0]['X'])
         
         #perform action
-        print(f'>> Current action from Prolog: {action}')
+        #print(f'>> Current action from Prolog: {action}')
         obs, reward, done, info = env.step(action_id)
 
         #obtain new game money
@@ -175,19 +175,22 @@ def perform_action(action, env,kb,planned_actions,obs):
 
     elif name == 'wear' :
         old_name = args[0]
-        curr_arm_idx = get_item_index(obs,old_name)
 
         #unequip current and drop it
-        env.step(69) #undress
-        env.render()
+        obs,_,_,_= env.step(69) #undress
+        #env.render()
+        message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+        if 'It is cursed.' in message :
+            raise CursedEquipmentException('A cursed armor was generated, need to retry')
+
         env.step(27) #drop command
-        env.render()
-        obs,_,_,_ = env.step(env.actions.index(ord('a') + curr_arm_idx)) #answer drop prompt
-        env.render()
+        #env.render()
+        obs,_,_,_ = env.step(env.actions.index(drop_item(old_name)) )#answer drop prompt
+        #env.render()
 
         #equip new
         obs,_,_,_ = env.step(77) #wear command
-        env.render()
+        #env.render()
         message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
         armor_char = message.split('[')[1].split()[0][-1]
         action_id = env.actions.index(ord(armor_char)) #wear last armor in inventory
@@ -203,7 +206,9 @@ def perform_action(action, env,kb,planned_actions,obs):
         old_money=int(list(kb.query('money(X)'))[0]['X'])
         kb.retractall("money(_)")
         kb.asserta(f"money({old_money-cost})")
-        # if it's buying arrows it will update the number of arrows the agent has
+
+        #add item to item map
+        add_item(item_name)
 
         kb.asserta(f"has(agent,\'{item_type}\',\'{item_name}\')")
 
@@ -218,7 +223,7 @@ def perform_action(action, env,kb,planned_actions,obs):
     elif 'south' in action: action_id = 2
     elif 'west' in action: action_id = 3
     elif 'sit' in action : action_id = 11
-    print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
+    #print(f'>> action from Prolog: {action} | Action performed: {repr(env.actions[action_id])}')
     obs, reward, done, info = env.step(action_id)
 
     if name == 'apply' :
@@ -228,6 +233,10 @@ def perform_action(action, env,kb,planned_actions,obs):
             #env.render()
             obs, reward, done, info = env.step(action_id)
             message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+
+    message = bytes(obs['message']).decode('utf-8').rstrip('\x00')
+    if 'welds itself to your hand!' in message :
+        raise CursedEquipmentException('Found a cursed weapon')
         
 
 
@@ -267,28 +276,32 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
             obj_type=chr(obs['chars'][i][j]) # characters indicates the type of object
             if obj_type == '!':
                 kb.asserta(f"position(potion,healing,{i},{j})")
-                kb.asserta(f"available_to_buy(potion,healing,1)")
+                kb.asserta(f"available_to_buy(potion,healing,5)")
+            elif 'stout spear' in objs or 'dwarvish spear' in objs:
+                kb.asserta(f"position(weapon,'dwarvish spear',{i},{j})")
+            elif 'runed broadsword' in objs or 'elven broadsword' in objs:
+                kb.asserta(f"position(weapon,'elven broadsword',{i},{j})")
             elif obj_type == ')':
                 arrow= list(filter(lambda x:x in objs,AVAIABLE_ARROWS))
                 if len(arrow)!=0:# if the list isn't empty it's an arrow otherwise it's a weapon
                     arrow=arrow[0]
                     kb.asserta(f"position(arrow,\'{arrow}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(arrow,\'{arrow}\',1)")
+                    kb.asserta(f"available_to_buy(arrow,\'{arrow}\',2)")
                 weapon= list(filter(lambda x:x in objs,AVAIABLE_WEAPONS))
                 if len(weapon)!=0 :
-                    weapon = weapon[0]
+                    weapon = weapon[-1]
                     kb.asserta(f"position(weapon,\'{weapon}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(weapon,\'{weapon}\',10)")
+                    kb.asserta(f"available_to_buy(weapon,\'{weapon}\',15)")
                 #special case: the katana appears as a samurai sword until it's stepped on
                 if 'samurai sword' in objs:
-                    kb.asserta(f"available_to_buy(weapon,\'katana\',10)")
+                    kb.asserta(f"available_to_buy(weapon,\'katana\',15)")
                     kb.asserta(f"position(weapon,\'katana\',{i},{j})")
             elif obj_type == '[': 
                 armor= list(filter(lambda x:x in objs,AVAIABLE_ARMORS))
                 if len(armor)!=0:
                     armor=armor[0]
                     kb.asserta(f"position(armor,\'{armor}\',{i},{j})")
-                    kb.asserta(f"available_to_buy(armor,\'{armor}\',5)")
+                    kb.asserta(f"available_to_buy(armor,\'{armor}\',20)")
             elif 'closed door' in objs:
                 kb.asserta(f"position(object,door,{i},{j})")
             elif 'open door' in objs or 'floor' in objs:
@@ -298,10 +311,8 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
                 kb.asserta(f'position(enemy,\'{objs}\',{i},{j})')
             elif 'key' in objs :
                 kb.asserta(f"position(tool,'skeleton key',{i},{j})")
-            elif 'runed broadsword' in objs:
-                kb.asserta(f"position(weapon,'elven broadsword',{i},{j})")
-            elif 'stout spear' in objs:
-                kb.asserta(f"position(weapon,'dwarvish spear',{i},{j})")
+
+
             
 
     
@@ -335,13 +346,13 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
 
             #an nomearma_con_spazi_nel_mezzo (being worn)
             ar = " ".join(item.split()[1:]).split('(')[0].rstrip()
-            print(f'ARMOR: {ar}')
+            #print(f'ARMOR: {ar}')
 
             objs=list(filter(lambda x: x in ar,AVAIABLE_ARMORS))
             if len(objs)!=0:
                 ar=objs[0]
 
-            print()
+            #print()
 
             kb.asserta(f"""wears_armor(agent,'{ar}')""")
 
@@ -393,15 +404,26 @@ def process_state(obs: dict, kb: Prolog, in_battle:bool = True):
     if 'The door opens' in message:
         kb.asserta("shopping_done")
     if 'You see here' in message:
+            
         armor=list(filter(lambda x:x in message,AVAIABLE_ARMORS))
         if len(armor) !=0:
             kb.asserta(f'stepping_on(agent, armor, \'{armor[0]}\')')
+
         weapon=list(filter(lambda x:x in message,AVAIABLE_WEAPONS))
         if len(weapon) !=0:
-            kb.asserta(f'stepping_on(agent, weapon, \'{weapon[0]}\')')
+
+            if 'stout spear' in message or 'dwarvish spear' in message:
+                kb.asserta('stepping_on(agent, weapon, \'dwarvish spear\')')
+
+            elif 'runed broadsword' in message or 'elven broadsword' in message:
+                kb.asserta('stepping_on(agent, weapon, \'elven broadsword\')')
+
+            else: kb.asserta(f'stepping_on(agent, weapon, \'{weapon[0]}\')')
+
         arrow=list(filter(lambda x:x in message,AVAIABLE_ARROWS))
         if len(arrow) !=0:
             kb.asserta(f'stepping_on(agent, arrow, \'{arrow[0]}\')')
+            
         objs=list(filter(lambda x:x in message,AVAIABLE_OBJECTS))
         if len(objs) !=0:
             kb.asserta(f'stepping_on(agent,potion,healing)')
@@ -577,3 +599,30 @@ def get_item_index(obs,str) :
             return idx
         idx += 1
     return -1
+
+ITEM_MAP = {}
+
+def fill_item_map(obs) :
+    global ITEM_MAP
+    ITEM_MAP = {}
+    idx = ord('a')
+    for item in obs['inv_strs']:
+        item = bytes(item).decode('utf-8').rstrip('\x00')
+        if item != '' :
+            ITEM_MAP[idx] = item
+            idx += 1
+
+def drop_item(str_arg) :
+    global ITEM_MAP
+    for key,value in ITEM_MAP.items() :
+        if str_arg in value or value in str_arg:
+            del ITEM_MAP[key]
+            return key
+        
+def add_item(str_arg) :
+    global ITEM_MAP
+    item_num= max(ITEM_MAP.keys()) + 1
+    ITEM_MAP[item_num] = str_arg
+
+class CursedEquipmentException(Exception):
+    pass

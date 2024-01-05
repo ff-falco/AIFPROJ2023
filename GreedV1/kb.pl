@@ -17,8 +17,6 @@
 
 :- dynamic corridors/0.
 
-:- dynamic open_spaces/0.
-
 :- dynamic shopping_done/0.
 :- dynamic battlefield_start/2.
 :- dynamic battle_begin/0.
@@ -183,7 +181,6 @@ action(get_to_item(Direction)) :- wants_to_buy(ItemType,ItemName,_),
                                   position(ItemType,ItemName,IR,IC),
                                   position(agent,_,AR,AC),
                                   next_step(AR,AC,IR,IC,Direction),
-                                  %\+ stepping_on(agent,ItemType,ItemName),
                                   \+ shopping_done.
 
 % pick a key when you stepped on it
@@ -193,7 +190,6 @@ action(pick_key) :- stepping_on(agent,tool,'skeleton key').
 action(get_key(Direction)) :- position(agent,_,R1,C1), 
                               position(tool,'skeleton key',R2,C2), 
                               next_step(R1,C1,R2,C2,Direction), 
-                              %\+ wants_to_buy(_,_,_),
                               \+ battle_begin.
 
 %use the apply action in the chosen direction
@@ -215,7 +211,6 @@ action(exit_shop(Direction)) :- position(agent,_,AR,AC),
                                     position(object,door,_,OtherDC),
                                     OtherDC<DC
                                 ), 
-                                \+ wants_to_buy(_,_,_),
                                 \+ shopping_done,
                                 \+ battle_begin.
 
@@ -308,7 +303,8 @@ healing_stats(comestible,orange,10).
 healing_stats(comestible,banana,10).
 healing_stats(potion,healing,20).
 
-armor_stats('chain mail',3).
+%armors not considered in this version
+armor_stats('red dragon',3).
 armor_stats('bronze plate mail',4).
 armor_stats('dwarvish mithril-coat',5).
 armor_stats('elven mithril-coat',6).
@@ -322,15 +318,15 @@ weapon_stats('elven broadsword',6).
 weapon_stats('trident',7).
 
 enemy_stats('newt',melee,1).
-enemy_stats('iguana',melee,3).
-enemy_stats('giant ant',melee,4).
+enemy_stats('gecko',melee,2).
+enemy_stats('manes',melee,4).
 enemy_stats('lemure',melee,5).
-enemy_stats('paper golem',melee,4).
+enemy_stats('iguana',melee,3).
 enemy_stats('dog',melee,5).
 enemy_stats('lizard',melee,6).
 enemy_stats('rock mole',melee,4).
 enemy_stats('jellyfish',melee,5).
-enemy_stats('unicorn',melee,6).
+enemy_stats('giant beetle',melee,6).
 enemy_stats('yeti',melee,7).
 
 is_pickable(gold).
